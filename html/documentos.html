@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Documentos - SGDE DUA FARMA</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css?family=Nunito:200,300,400,600,700,800,900" rel="stylesheet">
+    <link href="../css/sb-admin-2.min.css" rel="stylesheet">
+    <link href="../css/estilos.css" rel="stylesheet">
+</head>
+<body id="page-top">
+<div id="wrapper">
+
+        <ul class="navbar-nav bg-gradient-primary sidebar sidebar-dark accordion" id="accordionSidebar">
+            <a class="sidebar-brand d-flex align-items-center justify-content-center" href="dashboard.html">
+                <div class="sidebar-brand-icon rotate-n-15"><i class="fas fa-capsules"></i></div>
+                <div class="sidebar-brand-text mx-3">SGDE <sup>DUA FARMA</sup></div>
+            </a>
+            <hr class="sidebar-divider my-0">
+            
+            <li class="nav-item  ">
+                <a class="nav-link" href="dashboard.html">
+                    <i class="fas fa-fw fa-tachometer-alt"></i>
+                    <span>Panel Principal</span></a>
+            </li>
+            <li class="nav-item  ">
+                <a class="nav-link" href="recepcion.html">
+                    <i class="fas fa-fw fa-truck-loading"></i>
+                    <span>Recepción de Productos</span></a>
+            </li>
+            <li class="nav-item  ">
+                <a class="nav-link" href="kardex.html">
+                    <i class="fas fa-fw fa-boxes"></i>
+                    <span>Kardex de Productos</span></a>
+            </li>
+            <li class="nav-item active ">
+                <a class="nav-link" href="documentos.html">
+                    <i class="fas fa-fw fa-folder-open"></i>
+                    <span>Documentos (MOF / POE)</span></a>
+            </li>
+            <li class="nav-item  ">
+                <a class="nav-link" href="repositorios.html">
+                    <i class="fas fa-fw fa-hdd"></i>
+                    <span>Repositorios</span></a>
+            </li>
+            <li class="nav-item  solo-admin">
+                <a class="nav-link" href="auditoria.html">
+                    <i class="fas fa-fw fa-shield-alt"></i>
+                    <span>Bitácora de Auditoría</span></a>
+            </li>
+            <li class="nav-item  solo-admin">
+                <a class="nav-link" href="usuarios.html">
+                    <i class="fas fa-fw fa-users-cog"></i>
+                    <span>Usuarios y Roles</span></a>
+            </li>
+            <hr class="sidebar-divider d-none d-md-block">
+            <div class="text-center d-none d-md-inline">
+                <button class="rounded-circle border-0" id="sidebarToggle"></button>
+            </div>
+        </ul>
+    <div id="content-wrapper" class="d-flex flex-column">
+        <div id="content">
+
+        <nav class="navbar navbar-expand navbar-light bg-white topbar mb-4 static-top shadow">
+            <button id="sidebarToggleTop" class="btn btn-link d-md-none rounded-circle mr-3"><i class="fa fa-bars"></i></button>
+            <ul class="navbar-nav ml-auto">
+                <li class="nav-item">
+                    <span class="nav-link" id="nombre-usuario-sesion" style="font-weight:700;"></span>
+                </li>
+                <div class="topbar-divider d-none d-sm-block"></div>
+                <li class="nav-item">
+                    <a class="nav-link" href="#" onclick="cerrarSesion()"><i class="fas fa-sign-out-alt fa-sm text-gray-400"></i> Cerrar sesión</a>
+                </li>
+            </ul>
+        </nav>
+            <div class="container-fluid">
+
+<h1 class="h3 mb-4 text-gray-800">Repositorio Documental (MOF / POEs)</h1>
+
+<div class="card shadow mb-4 solo-admin">
+    <div class="card-header py-3"><h6 class="m-0 font-weight-bold text-primary">Subir nueva versión de un documento</h6></div>
+    <div class="card-body">
+        <form id="form-documento" class="row">
+            <div class="col-md-3 mb-3">
+                <label>Categoría</label>
+                <select class="form-control" id="dc-categoria">
+                    <option>MOF</option><option>POE</option><option>Formato</option><option>Proveedor</option>
+                </select>
+            </div>
+            <div class="col-md-3 mb-3">
+                <label>Nombre del documento</label>
+                <input type="text" class="form-control" id="dc-nombre" required>
+            </div>
+            <div class="col-md-2 mb-3">
+                <label>Versión</label>
+                <input type="text" class="form-control" id="dc-version" placeholder="v1.0" required>
+            </div>
+            <div class="col-md-2 mb-3">
+                <label>Vigente hasta</label>
+                <input type="date" class="form-control" id="dc-vigencia">
+            </div>
+            <div class="col-md-3 mb-3">
+                <label>Archivo (PDF, Word o Excel)</label>
+                <input type="file" class="form-control" id="dc-archivo" accept=".pdf,.doc,.docx,.xls,.xlsx" required>
+            </div>
+            <div class="col-12">
+                <button type="submit" class="btn btn-primary" id="btn-subir-doc"><i class="fas fa-upload"></i> Subir versión</button>
+                <small class="text-muted d-block mt-1">La versión anterior con el mismo nombre pasa a "obsoleta" automáticamente. Tamaño máximo recomendado: 20 MB.</small>
+                <div class="progress mt-2" style="height:6px; display:none;" id="dc-progreso-wrap">
+                    <div class="progress-bar" id="dc-progreso" style="width:0%"></div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card shadow mb-4">
+    <div class="card-header py-3"><h6 class="m-0 font-weight-bold text-primary">Documentos vigentes</h6></div>
+    <div class="card-body table-responsive">
+        <table class="table table-bordered" id="tabla-documentos">
+            <thead><tr><th>Categoría</th><th>Nombre</th><th>Versión</th><th>Vigente hasta</th><th>Estado</th><th>Archivo</th><th class="solo-escritura">Acciones</th></tr></thead>
+            <tbody></tbody>
+        </table>
+    </div>
+</div>
+
+            </div>
+        </div>
+
+<!-- Modal: Editar documento -->
+<div class="modal fade" id="modal-editar-doc" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <form id="form-editar-documento">
+        <div class="modal-header">
+          <h5 class="modal-title">Editar documento</h5>
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="ed-id">
+          <input type="hidden" id="ed-archivo-path-actual">
+          <div class="form-group">
+            <label>Categoría</label>
+            <select class="form-control" id="ed-categoria">
+                <option>MOF</option><option>POE</option><option>Formato</option><option>Proveedor</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Nombre del documento</label>
+            <input type="text" class="form-control" id="ed-nombre" required>
+          </div>
+          <div class="form-group">
+            <label>Versión</label>
+            <input type="text" class="form-control" id="ed-version" required>
+          </div>
+          <div class="form-group">
+            <label>Vigente hasta</label>
+            <input type="date" class="form-control" id="ed-vigencia">
+          </div>
+          <div class="form-group">
+            <label>Reemplazar archivo (opcional)</label>
+            <input type="file" class="form-control" id="ed-archivo" accept=".pdf,.doc,.docx,.xls,.xlsx">
+            <small class="text-muted">Déjalo vacío para conservar el archivo actual.</small>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary" id="btn-guardar-edicion"><i class="fas fa-save"></i> Guardar cambios</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+        <footer class="sticky-footer bg-white">
+            <div class="container my-auto">
+                <div class="copyright text-center my-auto">
+                    <span>SGDE - Droguería DUA FARMA S.A.C. &middot; Prototipo de tesis</span>
+                </div>
+            </div>
+        </footer>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="../js/sb-admin-2.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../js/supabaseClient.js"></script>
+<script src="../js/rol_guard.js"></script>
+<script src="../js/documentos.js"></script>
+</body>
+</html>

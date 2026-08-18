@@ -1,0 +1,4 @@
+.sidebar-brand-text sup { font-size: .6rem; letter-spacing: .05em; }
+.badge-warning { color:#3a3b45; }
+#error-msg { color:#dc2626; font-size:.85rem; margin-top:8px; text-align:center; }
+table td, table th { vertical-align: middle; }

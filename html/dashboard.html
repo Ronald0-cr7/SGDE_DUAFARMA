@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel Principal - SGDE DUA FARMA</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css?family=Nunito:200,300,400,600,700,800,900" rel="stylesheet">
+    <link href="../css/sb-admin-2.min.css" rel="stylesheet">
+    <link href="../css/estilos.css" rel="stylesheet">
+</head>
+<body id="page-top">
+<div id="wrapper">
+
+        <ul class="navbar-nav bg-gradient-primary sidebar sidebar-dark accordion" id="accordionSidebar">
+            <a class="sidebar-brand d-flex align-items-center justify-content-center" href="dashboard.html">
+                <div class="sidebar-brand-icon rotate-n-15"><i class="fas fa-capsules"></i></div>
+                <div class="sidebar-brand-text mx-3">SGDE <sup>DUA FARMA</sup></div>
+            </a>
+            <hr class="sidebar-divider my-0">
+            
+            <li class="nav-item active ">
+                <a class="nav-link" href="dashboard.html">
+                    <i class="fas fa-fw fa-tachometer-alt"></i>
+                    <span>Panel Principal</span></a>
+            </li>
+            <li class="nav-item  ">
+                <a class="nav-link" href="recepcion.html">
+                    <i class="fas fa-fw fa-truck-loading"></i>
+                    <span>Recepción de Productos</span></a>
+            </li>
+            <li class="nav-item  ">
+                <a class="nav-link" href="kardex.html">
+                    <i class="fas fa-fw fa-boxes"></i>
+                    <span>Kardex de Productos</span></a>
+            </li>
+            <li class="nav-item  ">
+                <a class="nav-link" href="documentos.html">
+                    <i class="fas fa-fw fa-folder-open"></i>
+                    <span>Documentos (MOF / POE)</span></a>
+            </li>
+            <li class="nav-item  ">
+                <a class="nav-link" href="repositorios.html">
+                    <i class="fas fa-fw fa-hdd"></i>
+                    <span>Repositorios</span></a>
+            </li>
+            <li class="nav-item  solo-admin">
+                <a class="nav-link" href="auditoria.html">
+                    <i class="fas fa-fw fa-shield-alt"></i>
+                    <span>Bitácora de Auditoría</span></a>
+            </li>
+            <li class="nav-item  solo-admin">
+                <a class="nav-link" href="usuarios.html">
+                    <i class="fas fa-fw fa-users-cog"></i>
+                    <span>Usuarios y Roles</span></a>
+            </li>
+            <hr class="sidebar-divider d-none d-md-block">
+            <div class="text-center d-none d-md-inline">
+                <button class="rounded-circle border-0" id="sidebarToggle"></button>
+            </div>
+        </ul>
+    <div id="content-wrapper" class="d-flex flex-column">
+        <div id="content">
+
+        <nav class="navbar navbar-expand navbar-light bg-white topbar mb-4 static-top shadow">
+            <button id="sidebarToggleTop" class="btn btn-link d-md-none rounded-circle mr-3"><i class="fa fa-bars"></i></button>
+            <ul class="navbar-nav ml-auto">
+                <li class="nav-item">
+                    <span class="nav-link" id="nombre-usuario-sesion" style="font-weight:700;"></span>
+                </li>
+                <div class="topbar-divider d-none d-sm-block"></div>
+                <li class="nav-item">
+                    <a class="nav-link" href="#" onclick="cerrarSesion()"><i class="fas fa-sign-out-alt fa-sm text-gray-400"></i> Cerrar sesión</a>
+                </li>
+            </ul>
+        </nav>
+            <div class="container-fluid">
+
+<h1 class="h3 mb-4 text-gray-800">Panel Principal</h1>
+<div class="row">
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-primary shadow h-100 py-2">
+            <div class="card-body">
+                <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Productos registrados</div>
+                <div class="h5 mb-0 font-weight-bold text-gray-800" id="kpi-productos">--</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-success shadow h-100 py-2">
+            <div class="card-body">
+                <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Recepciones registradas</div>
+                <div class="h5 mb-0 font-weight-bold text-gray-800" id="kpi-recepciones">--</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-info shadow h-100 py-2">
+            <div class="card-body">
+                <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Documentos vigentes</div>
+                <div class="h5 mb-0 font-weight-bold text-gray-800" id="kpi-documentos">--</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-warning shadow h-100 py-2">
+            <div class="card-body">
+                <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Acciones auditadas (hoy)</div>
+                <div class="h5 mb-0 font-weight-bold text-gray-800" id="kpi-auditoria">--</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow mb-4 solo-admin" id="card-almacenamiento">
+    <div class="card-header py-3 d-flex align-items-center justify-content-between">
+        <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-database mr-1"></i> Capacidad de almacenamiento
+        </h6>
+        <button class="btn btn-sm btn-outline-primary" id="btn-actualizar-almacenamiento" type="button">
+            <i class="fas fa-sync-alt"></i> Actualizar
+        </button>
+    </div>
+    <div class="card-body">
+        <div id="almacenamiento-error" class="alert alert-warning py-2" style="display:none"></div>
+        <div class="row">
+            <div class="col-lg-6 mb-3 mb-lg-0">
+                <div class="d-flex justify-content-between mb-1">
+                    <strong>Base de datos PostgreSQL</strong>
+                    <span id="bd-espacio-texto">Calculando...</span>
+                </div>
+                <div class="progress" style="height:22px" role="progressbar" aria-label="Uso de base de datos">
+                    <div id="bd-espacio-barra" class="progress-bar bg-success" style="width:0%" aria-valuemin="0" aria-valuemax="100">0%</div>
+                </div>
+                <small class="text-muted">Registros, índices, usuarios y auditoría. Límite Free: 500 MB.</small>
+            </div>
+            <div class="col-lg-6">
+                <div class="d-flex justify-content-between mb-1">
+                    <strong>Archivos en Storage</strong>
+                    <span id="storage-espacio-texto">Calculando...</span>
+                </div>
+                <div class="progress" style="height:22px" role="progressbar" aria-label="Uso de archivos">
+                    <div id="storage-espacio-barra" class="progress-bar bg-success" style="width:0%" aria-valuemin="0" aria-valuemax="100">0%</div>
+                </div>
+                <small class="text-muted"><span id="storage-cantidad">0 archivos</span>. Límite Free: 1 GB.</small>
+            </div>
+        </div>
+        <div id="almacenamiento-alerta" class="alert mt-3 mb-0 py-2" style="display:none"></div>
+    </div>
+</div>
+
+<div class="card shadow mb-4">
+    <div class="card-header py-3"><h6 class="m-0 font-weight-bold text-primary">Bienvenido al Sistema de Gestión Documental Electrónica</h6></div>
+    <div class="card-body">
+        <p>Este prototipo digitaliza y automatiza la documentación de Buenas Prácticas de Almacenamiento (BPA) de la Droguería DUA FARMA S.A.C., cumpliendo:</p>
+        <ul>
+            <li><strong>6.2.5.16</strong> — Control de accesos por rol + bitácora de auditoría automática.</li>
+            <li><strong>6.2.5.17</strong> — Copias de seguridad automáticas (gestionadas por Supabase) y procedimiento de contingencia documentado.</li>
+            <li><strong>6.2.5.18</strong> — Repositorio digital accesible del MOF y los POEs vigentes.</li>
+        </ul>
+    </div>
+</div>
+
+            </div>
+        </div>
+        <footer class="sticky-footer bg-white">
+            <div class="container my-auto">
+                <div class="copyright text-center my-auto">
+                    <span>SGDE - Droguería DUA FARMA S.A.C. &middot; Prototipo de tesis</span>
+                </div>
+            </div>
+        </footer>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="../js/sb-admin-2.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../js/supabaseClient.js"></script>
+<script src="../js/rol_guard.js"></script>
+<script src="../js/dashboard.js"></script>
+</body>
+</html>

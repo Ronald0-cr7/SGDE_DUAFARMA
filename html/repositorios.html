@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Repositorios - SGDE DUA FARMA</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css?family=Nunito:200,300,400,600,700,800,900" rel="stylesheet">
+    <link href="../css/sb-admin-2.min.css" rel="stylesheet">
+    <link href="../css/estilos.css" rel="stylesheet">
+    <link href="../css/repositorios.css" rel="stylesheet">
+</head>
+<body id="page-top">
+<div id="wrapper">
+
+        <ul class="navbar-nav bg-gradient-primary sidebar sidebar-dark accordion" id="accordionSidebar">
+            <a class="sidebar-brand d-flex align-items-center justify-content-center" href="dashboard.html">
+                <div class="sidebar-brand-icon rotate-n-15"><i class="fas fa-capsules"></i></div>
+                <div class="sidebar-brand-text mx-3">SGDE <sup>DUA FARMA</sup></div>
+            </a>
+            <hr class="sidebar-divider my-0">
+
+            <li class="nav-item  ">
+                <a class="nav-link" href="dashboard.html">
+                    <i class="fas fa-fw fa-tachometer-alt"></i>
+                    <span>Panel Principal</span></a>
+            </li>
+            <li class="nav-item  ">
+                <a class="nav-link" href="recepcion.html">
+                    <i class="fas fa-fw fa-truck-loading"></i>
+                    <span>Recepción de Productos</span></a>
+            </li>
+            <li class="nav-item  ">
+                <a class="nav-link" href="kardex.html">
+                    <i class="fas fa-fw fa-boxes"></i>
+                    <span>Kardex de Productos</span></a>
+            </li>
+            <li class="nav-item  ">
+                <a class="nav-link" href="documentos.html">
+                    <i class="fas fa-fw fa-folder-open"></i>
+                    <span>Documentos (MOF / POE)</span></a>
+            </li>
+            <li class="nav-item active ">
+                <a class="nav-link" href="repositorios.html">
+                    <i class="fas fa-fw fa-hdd"></i>
+                    <span>Repositorios</span></a>
+            </li>
+            <li class="nav-item  solo-admin">
+                <a class="nav-link" href="auditoria.html">
+                    <i class="fas fa-fw fa-shield-alt"></i>
+                    <span>Bitácora de Auditoría</span></a>
+            </li>
+            <li class="nav-item  solo-admin">
+                <a class="nav-link" href="usuarios.html">
+                    <i class="fas fa-fw fa-users-cog"></i>
+                    <span>Usuarios y Roles</span></a>
+            </li>
+            <hr class="sidebar-divider d-none d-md-block">
+            <div class="text-center d-none d-md-inline">
+                <button class="rounded-circle border-0" id="sidebarToggle"></button>
+            </div>
+        </ul>
+    <div id="content-wrapper" class="d-flex flex-column">
+        <div id="content">
+
+        <nav class="navbar navbar-expand navbar-light bg-white topbar mb-4 static-top shadow">
+            <button id="sidebarToggleTop" class="btn btn-link d-md-none rounded-circle mr-3"><i class="fa fa-bars"></i></button>
+            <ul class="navbar-nav ml-auto">
+                <li class="nav-item">
+                    <span class="nav-link" id="nombre-usuario-sesion" style="font-weight:700;"></span>
+                </li>
+                <div class="topbar-divider d-none d-sm-block"></div>
+                <li class="nav-item">
+                    <a class="nav-link" href="#" onclick="cerrarSesion()"><i class="fas fa-sign-out-alt fa-sm text-gray-400"></i> Cerrar sesión</a>
+                </li>
+            </ul>
+        </nav>
+            <div class="container-fluid">
+
+<h1 class="h3 mb-4 text-gray-800">Repositorios Digitales</h1>
+
+<!-- Selector de repositorio -->
+<div class="card shadow mb-4" id="rp-selector-card">
+    <div class="card-body">
+        <div class="d-flex align-items-end flex-wrap" style="gap:12px;">
+            <div style="min-width:280px;">
+                <label class="mb-1">Repositorio</label>
+                <select class="form-control" id="rp-select-repo"></select>
+            </div>
+            <button class="btn btn-outline-primary solo-admin" id="btn-nuevo-repo"><i class="fas fa-plus"></i> Nuevo repositorio</button>
+            <button class="btn btn-outline-danger solo-admin" id="btn-eliminar-repo"><i class="fas fa-trash"></i> Eliminar repositorio</button>
+            <div class="flex-grow-1"></div>
+            <div style="min-width:260px;">
+                <label class="mb-1">Buscar en este repositorio</label>
+                <input type="text" class="form-control" id="rp-buscar" placeholder="Nombre del archivo...">
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Explorador -->
+<div class="card shadow mb-4" id="rp-explorador-card" style="display:none;">
+    <div class="card-header py-3 d-flex justify-content-between align-items-center flex-wrap" style="gap:8px;">
+        <nav aria-label="breadcrumb" class="mb-0">
+            <ol class="breadcrumb mb-0 bg-transparent p-0" id="rp-breadcrumb"></ol>
+        </nav>
+        <div class="solo-admin">
+            <button class="btn btn-sm btn-outline-secondary" id="btn-nueva-carpeta"><i class="fas fa-folder-plus"></i> Nueva carpeta</button>
+            <button class="btn btn-sm btn-primary" id="btn-subir-archivo"><i class="fas fa-upload"></i> Subir archivos</button>
+            <input type="file" id="rp-input-archivo" style="display:none;" multiple>
+        </div>
+    </div>
+    <div class="card-body rp-zona-drop" id="rp-zona-drop">
+        <div class="rp-drop-indicador" id="rp-drop-indicador">
+            <i class="fas fa-cloud-upload-alt fa-3x mb-2"></i>
+            <strong>Suelta aquí los archivos</strong>
+            <small>Se guardarán en la carpeta actualmente abierta</small>
+        </div>
+        <div class="progress mb-3" style="height:6px; display:none;" id="rp-progreso-wrap">
+            <div class="progress-bar" id="rp-progreso" style="width:0%"></div>
+        </div>
+        <div class="small text-muted mb-3 solo-admin">
+            <i class="fas fa-info-circle"></i> Arrastra varios archivos aquí o usa “Subir archivos”.
+        </div>
+        <div id="rp-grid" class="rp-grid"></div>
+        <div id="rp-vacio" class="text-center text-muted py-5" style="display:none;">
+            <i class="fas fa-folder-open fa-3x mb-3"></i>
+            <p>Esta carpeta está vacía. Crea una subcarpeta o sube tu primer archivo.</p>
+        </div>
+        <div id="rp-resultados-busqueda" style="display:none;"></div>
+    </div>
+</div>
+
+<div class="card shadow mb-4" id="rp-sin-repo-card">
+    <div class="card-body text-center text-muted py-5">
+        <i class="fas fa-hdd fa-3x mb-3"></i>
+        <p>Crea tu primer repositorio para empezar a organizar tu documentación.</p>
+    </div>
+</div>
+
+            </div>
+        </div>
+
+<!-- Modal: Nuevo repositorio -->
+<div class="modal fade" id="modal-nuevo-repo" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <form id="form-nuevo-repo">
+        <div class="modal-header">
+          <h5 class="modal-title">Nuevo repositorio</h5>
+          <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label>Nombre</label>
+            <input type="text" class="form-control" id="nr-nombre" required>
+          </div>
+          <div class="form-group">
+            <label>Descripción (opcional)</label>
+            <textarea class="form-control" id="nr-descripcion" rows="2"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Crear</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Nueva carpeta -->
+<div class="modal fade" id="modal-nueva-carpeta" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <form id="form-nueva-carpeta">
+        <div class="modal-header">
+          <h5 class="modal-title">Nueva carpeta</h5>
+          <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label>Nombre de la carpeta</label>
+            <input type="text" class="form-control" id="nc-nombre" required>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Crear</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Renombrar (archivo o carpeta) -->
+<div class="modal fade" id="modal-renombrar" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <form id="form-renombrar">
+        <div class="modal-header">
+          <h5 class="modal-title">Renombrar</h5>
+          <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="rn-id">
+          <input type="hidden" id="rn-tipo">
+          <div class="form-group">
+            <label>Nuevo nombre</label>
+            <input type="text" class="form-control" id="rn-nombre" required>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Información del archivo -->
+<div class="modal fade" id="modal-info-archivo" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Información del archivo</h5>
+        <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+      </div>
+      <div class="modal-body" id="rp-info-body"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+        <footer class="sticky-footer bg-white">
+            <div class="container my-auto">
+                <div class="copyright text-center my-auto">
+                    <span>SGDE - Droguería DUA FARMA S.A.C. &middot; Prototipo de tesis</span>
+                </div>
+            </div>
+        </footer>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="../js/sb-admin-2.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../js/supabaseClient.js"></script>
+<script src="../js/rol_guard.js"></script>
+<script src="../js/repositorios.js"></script>
+</body>
+</html>
