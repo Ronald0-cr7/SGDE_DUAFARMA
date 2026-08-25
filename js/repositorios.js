@@ -8,6 +8,7 @@
 
 const BUCKET_REPO = 'repositorios';
 const TAMANIO_MAXIMO_ARCHIVO = 50 * 1000 * 1000;
+const CLAVE_ELIMINAR_REPOSITORIO = '123456';
 
 let SESION = null;
 let REPOS = [];
@@ -100,6 +101,33 @@ async function eliminarRepositorioActual() {
     } catch (err) {
         manejarErrorSupabase(err, 'No se pudo eliminar el repositorio.');
     }
+}
+
+function solicitarClaveEliminarRepositorio() {
+    if (!exigirAdminRepositorio()) return;
+    const repo = REPOS.find(r => r.id === ESTADO.repoId);
+    if (!repo) return;
+
+    const input = document.getElementById('rp-clave-eliminar');
+    input.value = '';
+    input.classList.remove('is-invalid');
+    $('#modal-clave-eliminar-repo').modal('show');
+    $('#modal-clave-eliminar-repo').one('shown.bs.modal', () => input.focus());
+}
+
+async function validarClaveYEliminarRepositorio(e) {
+    e.preventDefault();
+    const input = document.getElementById('rp-clave-eliminar');
+    if (input.value !== CLAVE_ELIMINAR_REPOSITORIO) {
+        input.classList.add('is-invalid');
+        input.focus();
+        input.select();
+        return;
+    }
+
+    input.classList.remove('is-invalid');
+    $('#modal-clave-eliminar-repo').modal('hide');
+    await eliminarRepositorioActual();
 }
 
 // ------------------------------------------------------------
@@ -467,7 +495,9 @@ function enlazarEventos() {
         e.target.reset();
     });
 
-    document.getElementById('btn-eliminar-repo').addEventListener('click', eliminarRepositorioActual);
+    document.getElementById('btn-eliminar-repo').addEventListener('click', solicitarClaveEliminarRepositorio);
+    document.getElementById('form-clave-eliminar-repo').addEventListener('submit', validarClaveYEliminarRepositorio);
+    document.getElementById('rp-clave-eliminar').addEventListener('input', (e) => e.target.classList.remove('is-invalid'));
 
     document.getElementById('btn-nueva-carpeta').addEventListener('click', () => $('#modal-nueva-carpeta').modal('show'));
     document.getElementById('form-nueva-carpeta').addEventListener('submit', async (e) => {

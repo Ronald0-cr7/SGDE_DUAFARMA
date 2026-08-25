@@ -8,13 +8,14 @@
     <link href="https://fonts.googleapis.com/css?family=Nunito:200,300,400,600,700,800,900" rel="stylesheet">
     <link href="../css/sb-admin-2.min.css" rel="stylesheet">
     <link href="../css/estilos.css" rel="stylesheet">
+    <script src="../js/tema.js"></script>
 </head>
 <body id="page-top">
 <div id="wrapper">
 
         <ul class="navbar-nav bg-gradient-primary sidebar sidebar-dark accordion" id="accordionSidebar">
             <a class="sidebar-brand d-flex align-items-center justify-content-center" href="dashboard.html">
-                <div class="sidebar-brand-icon rotate-n-15"><i class="fas fa-capsules"></i></div>
+                <div class="sidebar-brand-icon"><img class="sidebar-logo" src="../imagen.png" alt="Logo de DUA FARMA"></div>
                 <div class="sidebar-brand-text mx-3">SGDE <sup>DUA FARMA</sup></div>
             </a>
             <hr class="sidebar-divider my-0">
@@ -28,6 +29,11 @@
                 <a class="nav-link" href="recepcion.html">
                     <i class="fas fa-fw fa-truck-loading"></i>
                     <span>Recepción de Productos</span></a>
+            </li>
+            <li class="nav-item  ">
+                <a class="nav-link" href="productos.html">
+                    <i class="fas fa-fw fa-pills"></i>
+                    <span>Lista de Productos</span></a>
             </li>
             <li class="nav-item  ">
                 <a class="nav-link" href="kardex.html">
@@ -102,7 +108,7 @@
     <div class="card-header py-3"><h6 class="m-0 font-weight-bold text-primary">Usuarios del sistema</h6></div>
     <div class="card-body table-responsive">
         <table class="table table-bordered" id="tabla-usuarios">
-            <thead><tr><th>Usuario</th><th>Nombre</th><th>Rol</th><th>Activo</th><th>Acción</th></tr></thead>
+            <thead><tr><th>Usuario</th><th>Nombre</th><th>Rol</th><th>Activo</th><th>Acciones</th></tr></thead>
             <tbody></tbody>
         </table>
     </div>
@@ -110,6 +116,48 @@
 
             </div>
         </div>
+
+<div class="modal fade" id="modal-editar-usuario" tabindex="-1" role="dialog" aria-labelledby="titulo-editar-usuario" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <form id="form-editar-usuario">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="titulo-editar-usuario">Actualizar usuario</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar"><span aria-hidden="true">&times;</span></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="edit-us-id">
+                    <div class="form-group">
+                        <label for="edit-us-username">Usuario</label>
+                        <input type="text" class="form-control" id="edit-us-username" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-us-nombre">Nombre completo</label>
+                        <input type="text" class="form-control" id="edit-us-nombre" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-us-rol">Rol</label>
+                        <select class="form-control" id="edit-us-rol" required>
+                            <option value="admin">Director Técnico (admin)</option>
+                            <option value="asistente">Asistente</option>
+                            <option value="auxiliar">Auxiliar</option>
+                        </select>
+                    </div>
+                    <div class="form-group mb-0">
+                        <label for="edit-us-password">Nueva contraseña</label>
+                        <input type="password" class="form-control" id="edit-us-password" autocomplete="new-password">
+                        <small class="form-text text-muted">Déjala vacía para conservar la contraseña actual.</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Guardar cambios</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
         <footer class="sticky-footer bg-white">
             <div class="container my-auto">
                 <div class="copyright text-center my-auto">

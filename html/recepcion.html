@@ -8,13 +8,14 @@
     <link href="https://fonts.googleapis.com/css?family=Nunito:200,300,400,600,700,800,900" rel="stylesheet">
     <link href="../css/sb-admin-2.min.css" rel="stylesheet">
     <link href="../css/estilos.css" rel="stylesheet">
+    <script src="../js/tema.js"></script>
 </head>
 <body id="page-top">
 <div id="wrapper">
 
         <ul class="navbar-nav bg-gradient-primary sidebar sidebar-dark accordion" id="accordionSidebar">
             <a class="sidebar-brand d-flex align-items-center justify-content-center" href="dashboard.html">
-                <div class="sidebar-brand-icon rotate-n-15"><i class="fas fa-capsules"></i></div>
+                <div class="sidebar-brand-icon"><img class="sidebar-logo" src="../imagen.png" alt="Logo de DUA FARMA"></div>
                 <div class="sidebar-brand-text mx-3">SGDE <sup>DUA FARMA</sup></div>
             </a>
             <hr class="sidebar-divider my-0">
@@ -28,6 +29,11 @@
                 <a class="nav-link" href="recepcion.html">
                     <i class="fas fa-fw fa-truck-loading"></i>
                     <span>Recepción de Productos</span></a>
+            </li>
+            <li class="nav-item  ">
+                <a class="nav-link" href="productos.html">
+                    <i class="fas fa-fw fa-pills"></i>
+                    <span>Lista de Productos</span></a>
             </li>
             <li class="nav-item  ">
                 <a class="nav-link" href="kardex.html">
@@ -81,53 +87,38 @@
 <div class="card shadow mb-4 solo-escritura">
     <div class="card-header py-3"><h6 class="m-0 font-weight-bold text-primary">Registrar recepción</h6></div>
     <div class="card-body">
-        <form id="form-recepcion" class="row">
-            <div class="col-md-4 mb-3">
-                <label>N° Guía / Factura</label>
-                <input type="text" class="form-control" id="rc-guia" required>
+        <form id="form-recepcion">
+          <div class="row">
+            <div class="col-md-3 mb-3"><label>N° Guía / Factura</label><input type="text" class="form-control" id="rc-guia" required></div>
+            <div class="col-md-3 mb-3"><label>Proveedor</label><input type="text" class="form-control" id="rc-proveedor" required></div>
+            <div class="col-md-3 mb-3"><label>Fecha de recepción</label><input type="date" class="form-control" id="rc-fecha" required></div>
+            <div class="col-md-3 mb-3"><label>Tipo de ingreso</label><select class="form-control" id="rc-tipo"><option>COMPRA LOCAL</option><option>IMPORTACIÓN</option><option>OTROS</option></select></div>
+          </div>
+
+          <div class="d-flex justify-content-between align-items-center mt-2 mb-2">
+              <h6 class="font-weight-bold text-gray-800 mb-0">Productos recibidos <span class="badge badge-primary ml-1" id="contador-productos-acta">0 productos</span></h6>
+              <button type="button" class="btn btn-outline-primary btn-sm" id="btn-agregar-producto"><i class="fas fa-plus"></i> Agregar producto</button>
+          </div>
+          <div class="table-responsive tabla-acta-editor mb-3">
+            <table class="table table-bordered table-sm" id="tabla-detalle-editor">
+              <thead><tr><th>Cant. solicit.</th><th>Cant. recib.</th><th>Código</th><th>Producto</th><th>Presentación</th><th>Concentración / forma</th><th>Fabricante</th><th>Procedencia</th><th>Lote / serie</th><th>F. venc.</th><th>R.S./NSO</th><th>Cond. almac.</th><th>Embalaje</th><th></th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+
+          <button class="btn btn-link btn-sm px-0 mb-2" type="button" data-toggle="collapse" data-target="#datos-recepcion-complementarios"><i class="fas fa-chevron-down"></i> Datos de entrega, recepción y firmas</button>
+          <div class="collapse" id="datos-recepcion-complementarios">
+            <div class="row">
+              <div class="col-md-4 mb-3"><label>Transportista</label><input type="text" class="form-control" id="rc-transportista"></div>
+              <div class="col-md-4 mb-3"><label>Inicio de entrega</label><input type="datetime-local" class="form-control" id="rc-entrega-inicio"></div>
+              <div class="col-md-4 mb-3"><label>Término de entrega</label><input type="datetime-local" class="form-control" id="rc-entrega-termino"></div>
+              <div class="col-md-4 mb-3"><label>Recibido por (Almacén)</label><input type="text" class="form-control" id="rc-recibido-por"></div>
+              <div class="col-md-4 mb-3"><label>Inicio de recepción</label><input type="datetime-local" class="form-control" id="rc-recepcion-inicio"></div>
+              <div class="col-md-4 mb-3"><label>Término de recepción</label><input type="datetime-local" class="form-control" id="rc-recepcion-termino"></div>
+              <div class="col-md-4 mb-3"><label>Director técnico</label><input type="text" class="form-control" id="rc-director"></div>
             </div>
-            <div class="col-md-4 mb-3">
-                <label>Proveedor</label>
-                <input type="text" class="form-control" id="rc-proveedor" required>
-            </div>
-            <div class="col-md-4 mb-3">
-                <label>Tipo de ingreso</label>
-                <select class="form-control" id="rc-tipo">
-                    <option>COMPRA LOCAL</option>
-                    <option>IMPORTACIÓN</option>
-                    <option>OTROS</option>
-                </select>
-            </div>
-            <div class="col-md-3 mb-3">
-                <label>Producto</label>
-                <select class="form-control" id="rc-producto" required></select>
-            </div>
-            <div class="col-md-2 mb-3">
-                <label>Lote</label>
-                <input type="text" class="form-control" id="rc-lote">
-            </div>
-            <div class="col-md-2 mb-3">
-                <label>F. Venc.</label>
-                <input type="date" class="form-control" id="rc-venc">
-            </div>
-            <div class="col-md-2 mb-3">
-                <label>Cant. Solicitada</label>
-                <input type="number" class="form-control" id="rc-solicit">
-            </div>
-            <div class="col-md-2 mb-3">
-                <label>Cant. Recibida</label>
-                <input type="number" class="form-control" id="rc-recib" required>
-            </div>
-            <div class="col-md-3 mb-3">
-                <label>Estado del embalaje</label>
-                <select class="form-control" id="rc-estado">
-                    <option>CONFORME</option>
-                    <option>NO CONFORME</option>
-                </select>
-            </div>
-            <div class="col-12">
-                <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Registrar recepción y generar Kardex</button>
-            </div>
+          </div>
+          <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Registrar acta y generar Kardex</button>
         </form>
     </div>
 </div>
@@ -136,7 +127,7 @@
     <div class="card-header py-3"><h6 class="m-0 font-weight-bold text-primary">Actas registradas recientemente</h6></div>
     <div class="card-body table-responsive">
         <table class="table table-bordered" id="tabla-recepciones">
-            <thead><tr><th>Fecha</th><th>Guía</th><th>Proveedor</th><th>Tipo</th><th>Registrado por</th></tr></thead>
+            <thead><tr><th>Fecha</th><th>Guía</th><th>Proveedor</th><th>Tipo</th><th>Productos</th><th>Registrado por</th><th>Acciones</th></tr></thead>
             <tbody></tbody>
         </table>
     </div>
@@ -158,8 +149,10 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="../js/sb-admin-2.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 <script src="../js/supabaseClient.js"></script>
 <script src="../js/rol_guard.js"></script>
+<script src="../js/exportacionExcel.js"></script>
 <script src="../js/recepcion.js"></script>
 </body>
 </html>

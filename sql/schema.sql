@@ -29,6 +29,11 @@ create table productos (
     fabricante text,
     procedencia text,
     dam text default 'N.A',
+    concentracion_forma text,
+    condicion_almacen text default 'T° Ambiente Controlada',
+    lote text,
+    fecha_venc date,
+    estado_embalaje text default 'CONFORME',
     stock numeric default 0,
     created_at timestamptz default now()
 );

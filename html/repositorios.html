@@ -8,6 +8,7 @@
     <link href="https://fonts.googleapis.com/css?family=Nunito:200,300,400,600,700,800,900" rel="stylesheet">
     <link href="../css/sb-admin-2.min.css" rel="stylesheet">
     <link href="../css/estilos.css" rel="stylesheet">
+    <script src="../js/tema.js"></script>
     <link href="../css/repositorios.css" rel="stylesheet">
 </head>
 <body id="page-top">
@@ -15,7 +16,7 @@
 
         <ul class="navbar-nav bg-gradient-primary sidebar sidebar-dark accordion" id="accordionSidebar">
             <a class="sidebar-brand d-flex align-items-center justify-content-center" href="dashboard.html">
-                <div class="sidebar-brand-icon rotate-n-15"><i class="fas fa-capsules"></i></div>
+                <div class="sidebar-brand-icon"><img class="sidebar-logo" src="../imagen.png" alt="Logo de DUA FARMA"></div>
                 <div class="sidebar-brand-text mx-3">SGDE <sup>DUA FARMA</sup></div>
             </a>
             <hr class="sidebar-divider my-0">
@@ -29,6 +30,11 @@
                 <a class="nav-link" href="recepcion.html">
                     <i class="fas fa-fw fa-truck-loading"></i>
                     <span>Recepción de Productos</span></a>
+            </li>
+            <li class="nav-item  ">
+                <a class="nav-link" href="productos.html">
+                    <i class="fas fa-fw fa-pills"></i>
+                    <span>Lista de Productos</span></a>
             </li>
             <li class="nav-item  ">
                 <a class="nav-link" href="kardex.html">
@@ -213,6 +219,32 @@
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
           <button type="submit" class="btn btn-primary">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Clave para eliminar el repositorio raíz -->
+<div class="modal fade" id="modal-clave-eliminar-repo" tabindex="-1" role="dialog" aria-labelledby="titulo-clave-eliminar-repo" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <form id="form-clave-eliminar-repo">
+        <div class="modal-header">
+          <h5 class="modal-title" id="titulo-clave-eliminar-repo">Confirmar eliminación del repositorio</h5>
+          <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar"><span aria-hidden="true">&times;</span></button>
+        </div>
+        <div class="modal-body">
+          <p class="text-danger"><i class="fas fa-exclamation-triangle"></i> Esta acción eliminará la carpeta raíz y todo su contenido.</p>
+          <div class="form-group mb-0">
+            <label for="rp-clave-eliminar">Clave de seguridad</label>
+            <input type="password" class="form-control" id="rp-clave-eliminar" autocomplete="off" required>
+            <div class="invalid-feedback" id="rp-clave-error">La clave de seguridad es incorrecta.</div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-danger"><i class="fas fa-trash"></i> Continuar</button>
         </div>
       </form>
     </div>

@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Productos - SGDE DUA FARMA</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css?family=Nunito:200,300,400,600,700,800,900" rel="stylesheet">
+    <link href="../css/sb-admin-2.min.css" rel="stylesheet">
+    <link href="../css/estilos.css" rel="stylesheet">
+    <script src="../js/tema.js"></script>
+</head>
+<body id="page-top">
+<div id="wrapper">
+    <ul class="navbar-nav bg-gradient-primary sidebar sidebar-dark accordion" id="accordionSidebar">
+        <a class="sidebar-brand d-flex align-items-center justify-content-center" href="dashboard.html">
+            <div class="sidebar-brand-icon"><img class="sidebar-logo" src="../imagen.png" alt="Logo de DUA FARMA"></div>
+            <div class="sidebar-brand-text mx-3">SGDE <sup>DUA FARMA</sup></div>
+        </a>
+        <hr class="sidebar-divider my-0">
+        <li class="nav-item"><a class="nav-link" href="dashboard.html"><i class="fas fa-fw fa-tachometer-alt"></i><span>Panel Principal</span></a></li>
+        <li class="nav-item"><a class="nav-link" href="recepcion.html"><i class="fas fa-fw fa-truck-loading"></i><span>Recepción de Productos</span></a></li>
+        <li class="nav-item active"><a class="nav-link" href="productos.html"><i class="fas fa-fw fa-pills"></i><span>Lista de Productos</span></a></li>
+        <li class="nav-item"><a class="nav-link" href="kardex.html"><i class="fas fa-fw fa-boxes"></i><span>Kardex de Productos</span></a></li>
+        <li class="nav-item"><a class="nav-link" href="documentos.html"><i class="fas fa-fw fa-folder-open"></i><span>Documentos (MOF / POE)</span></a></li>
+        <li class="nav-item"><a class="nav-link" href="repositorios.html"><i class="fas fa-fw fa-hdd"></i><span>Repositorios</span></a></li>
+        <li class="nav-item solo-admin"><a class="nav-link" href="auditoria.html"><i class="fas fa-fw fa-shield-alt"></i><span>Bitácora de Auditoría</span></a></li>
+        <li class="nav-item solo-admin"><a class="nav-link" href="usuarios.html"><i class="fas fa-fw fa-users-cog"></i><span>Usuarios y Roles</span></a></li>
+        <hr class="sidebar-divider d-none d-md-block">
+        <div class="text-center d-none d-md-inline"><button class="rounded-circle border-0" id="sidebarToggle"></button></div>
+    </ul>
+    <div id="content-wrapper" class="d-flex flex-column">
+        <div id="content">
+            <nav class="navbar navbar-expand navbar-light bg-white topbar mb-4 static-top shadow">
+                <button id="sidebarToggleTop" class="btn btn-link d-md-none rounded-circle mr-3"><i class="fa fa-bars"></i></button>
+                <ul class="navbar-nav ml-auto">
+                    <li class="nav-item"><span class="nav-link" id="nombre-usuario-sesion" style="font-weight:700;"></span></li>
+                    <div class="topbar-divider d-none d-sm-block"></div>
+                    <li class="nav-item"><a class="nav-link" href="#" onclick="cerrarSesion()"><i class="fas fa-sign-out-alt fa-sm text-gray-400"></i> Cerrar sesión</a></li>
+                </ul>
+            </nav>
+            <div class="container-fluid">
+                <div class="d-flex justify-content-between align-items-center flex-wrap mb-4" style="gap:12px;">
+                    <h1 class="h3 mb-0 text-gray-800">Lista de Productos</h1>
+                    <button class="btn btn-primary solo-escritura" id="btn-nuevo-producto"><i class="fas fa-plus"></i> Nuevo producto</button>
+                </div>
+                <div class="card shadow mb-4">
+                    <div class="card-header py-3 d-flex justify-content-between align-items-center flex-wrap" style="gap:10px;">
+                        <h6 class="m-0 font-weight-bold text-primary">Catálogo maestro</h6>
+                        <div class="input-group input-group-sm" style="max-width:360px;">
+                            <div class="input-group-prepend"><span class="input-group-text"><i class="fas fa-search"></i></span></div>
+                            <input class="form-control" id="buscar-producto" placeholder="Buscar por código, nombre o fabricante">
+                        </div>
+                    </div>
+                    <div class="card-body table-responsive">
+                        <table class="table table-bordered table-hover table-sm" id="tabla-productos" style="min-width:1900px;">
+                            <thead><tr><th>Código</th><th>Nombre del producto</th><th>Presentación</th><th>Concentración y forma farmacéutica</th><th>Fabricante</th><th>País de procedencia</th><th>Lote / serie</th><th>F. venc.</th><th>N° R.S./NSO</th><th>Cond. de almac.</th><th>Estado del embalaje</th><th>Stock</th><th>Acciones</th></tr></thead>
+                            <tbody></tbody>
+                        </table>
+                        <div id="sin-productos" class="text-center text-muted py-4" style="display:none;">No se encontraron productos.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <footer class="sticky-footer bg-white"><div class="container my-auto"><div class="copyright text-center my-auto"><span>SGDE - Droguería DUA FARMA S.A.C. &middot; Prototipo de tesis</span></div></div></footer>
+    </div>
+</div>
+
+<div class="modal fade" id="modal-producto" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-xl" role="document"><div class="modal-content"><form id="form-producto">
+        <div class="modal-header"><h5 class="modal-title" id="titulo-modal-producto">Nuevo producto</h5><button type="button" class="close" data-dismiss="modal"><span>&times;</span></button></div>
+        <div class="modal-body"><input type="hidden" id="pr-id"><div class="row">
+            <div class="col-md-3 mb-3"><label for="pr-codigo">Código *</label><input class="form-control" id="pr-codigo" required></div>
+            <div class="col-md-6 mb-3"><label for="pr-nombre">Nombre del producto *</label><input class="form-control" id="pr-nombre" required></div>
+            <div class="col-md-3 mb-3"><label for="pr-registro">N° R.S./NSO</label><input class="form-control" id="pr-registro"></div>
+            <div class="col-md-6 mb-3"><label for="pr-presentacion">Presentación</label><textarea class="form-control" id="pr-presentacion" rows="3"></textarea></div>
+            <div class="col-md-6 mb-3"><label for="pr-concentracion">Concentración y forma farmacéutica</label><textarea class="form-control" id="pr-concentracion" rows="3"></textarea></div>
+            <div class="col-md-4 mb-3"><label for="pr-fabricante">Fabricante</label><input class="form-control" id="pr-fabricante"></div>
+            <div class="col-md-4 mb-3"><label for="pr-procedencia">País de procedencia</label><input class="form-control" id="pr-procedencia"></div>
+            <div class="col-md-4 mb-3"><label for="pr-dam">DAM</label><input class="form-control" id="pr-dam" value="N.A"></div>
+            <div class="col-md-3 mb-3"><label for="pr-lote">Lote / serie</label><input class="form-control" id="pr-lote"></div>
+            <div class="col-md-3 mb-3"><label for="pr-vencimiento">Fecha de vencimiento</label><input type="date" class="form-control" id="pr-vencimiento"></div>
+            <div class="col-md-3 mb-3"><label for="pr-condicion">Condición de almacenamiento</label><input class="form-control" id="pr-condicion" value="T° Ambiente Controlada"></div>
+            <div class="col-md-3 mb-3"><label for="pr-embalaje">Estado del embalaje</label><select class="form-control" id="pr-embalaje"><option>CONFORME</option><option>NO CONFORME</option></select></div>
+        </div></div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button><button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Guardar producto</button></div>
+    </form></div></div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="../js/sb-admin-2.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../js/supabaseClient.js"></script><script src="../js/rol_guard.js"></script><script src="../js/productos.js"></script>
+</body></html>
+

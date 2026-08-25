@@ -66,7 +66,21 @@ paso único de configuración en tu proyecto Supabase:
 
 **Bonus — exportar reportes:** en el módulo **Kardex**, el botón
 "Exportar a Excel" genera y descarga un archivo `.xlsx` real del kardex
-del producto seleccionado, usando la librería SheetJS (sin backend extra).
+del producto seleccionado, usando la librería ExcelJS (sin backend extra).
+
+## Actas multiproducto y formatos Excel
+
+Si la base de datos ya estaba creada antes de esta actualización, ejecuta una vez
+`sql/migracion_actas_kardex_excel.sql` en el **SQL Editor** de Supabase. La
+migración conserva los datos actuales y agrega los campos del formato físico,
+la relación Acta–Kardex y una función transaccional para guardar todos los
+productos del acta sin dejar registros incompletos.
+
+En **Recepción** se pueden agregar varias filas de productos a una misma acta.
+Al guardarla se crea el ingreso correspondiente en el Kardex de cada producto.
+La tabla de actas ofrece los botones **Ver** y **Excel**. En **Kardex**, el botón
+de exportación genera el formato `FOR-ALM-011 / VERSIÓN 001`. Ambos archivos
+se generan como `.xlsx` sin macros mediante ExcelJS.
 
 ## Módulo nuevo: Repositorios Digitales (estilo Google Drive)
 

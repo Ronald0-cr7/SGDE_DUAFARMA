@@ -19,6 +19,17 @@
         return;
     }
 
+    // Sincroniza sesiones creadas antes de incorporar módulos nuevos.
+    const accesosPorRol = {
+        admin: ['dashboard', 'recepcion', 'productos', 'kardex', 'documentos', 'repositorios', 'auditoria', 'usuarios'],
+        asistente: ['dashboard', 'recepcion', 'productos', 'kardex', 'documentos', 'repositorios'],
+        auxiliar: ['dashboard', 'productos', 'kardex', 'documentos', 'repositorios']
+    };
+    if (accesosPorRol[sesion.rol]) {
+        sesion.acceso = accesosPorRol[sesion.rol];
+        localStorage.setItem('sesion_usuario', JSON.stringify(sesion));
+    }
+
     if (sesion.acceso && !sesion.acceso.includes(pagina)) {
         alert('⚠️ Tu rol (' + sesion.rol + ') no tiene acceso a este módulo.');
         window.location.href = 'dashboard.html';

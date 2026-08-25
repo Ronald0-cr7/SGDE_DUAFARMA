@@ -18,9 +18,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Módulos visibles según el rol (6.2.5.16 - control de accesos)
     const ACCESOS_POR_ROL = {
-        admin:     ['dashboard', 'recepcion', 'kardex', 'documentos', 'repositorios', 'auditoria', 'usuarios'],
-        asistente: ['dashboard', 'recepcion', 'kardex', 'documentos', 'repositorios'],
-        auxiliar:  ['dashboard', 'kardex', 'documentos', 'repositorios']
+        admin:     ['dashboard', 'recepcion', 'productos', 'kardex', 'documentos', 'repositorios', 'auditoria', 'usuarios'],
+        asistente: ['dashboard', 'recepcion', 'productos', 'kardex', 'documentos', 'repositorios'],
+        auxiliar:  ['dashboard', 'productos', 'kardex', 'documentos', 'repositorios']
     };
 
     form.addEventListener('submit', async (e) => {
