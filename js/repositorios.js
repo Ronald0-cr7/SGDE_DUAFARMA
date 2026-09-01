@@ -482,6 +482,205 @@ async function irACarpetaDeArchivo(carpetaId) {
 }
 
 // ------------------------------------------------------------
+// COPIAS DE SEGURIDAD
+// ------------------------------------------------------------
+function nombreSeguroZip(nombre) {
+    return String(nombre || 'sin_nombre').replace(/[\\/:*?"<>|]/g, '_').replace(/\.\./g, '_');
+}
+
+function fechaHoraBackup() {
+    const d = new Date();
+    const dos = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${dos(d.getMonth() + 1)}-${dos(d.getDate())}_${dos(d.getHours())}-${dos(d.getMinutes())}-${dos(d.getSeconds())}`;
+}
+
+function cambiarEstadoBackup(activo, mensaje) {
+    const botones = ['btn-crear-backup', 'btn-restaurar-backup'];
+    botones.forEach(id => { const b = document.getElementById(id); if (b) b.disabled = activo; });
+    const boton = document.getElementById('btn-crear-backup');
+    if (boton) {
+        if (!boton.dataset.textoOriginal) boton.dataset.textoOriginal = boton.innerHTML;
+        boton.innerHTML = activo ? `<i class="fas fa-spinner fa-spin"></i> ${mensaje || 'Procesando...'}` : boton.dataset.textoOriginal;
+    }
+}
+
+function construirRutasCarpetas(carpetas) {
+    const porId = new Map(carpetas.map(c => [c.id, c]));
+    const cache = new Map();
+    function ruta(carpetaId) {
+        if (!carpetaId) return '';
+        if (cache.has(carpetaId)) return cache.get(carpetaId);
+        const c = porId.get(carpetaId);
+        if (!c) throw new Error(`La carpeta ${carpetaId} no existe.`);
+        const valor = [ruta(c.carpeta_padre_id), nombreSeguroZip(c.nombre)].filter(Boolean).join('/');
+        cache.set(carpetaId, valor);
+        return valor;
+    }
+    carpetas.forEach(c => ruta(c.id));
+    return cache;
+}
+
+async function crearCopiaSeguridad() {
+    if (!exigirAdminRepositorio()) return;
+    if (typeof JSZip === 'undefined') return alert('No se pudo cargar el componente ZIP. Revisa tu conexión e inténtalo nuevamente.');
+    cambiarEstadoBackup(true, 'Recopilando biblioteca...');
+    try {
+        const [rRepos, rCarpetas, rArchivos] = await Promise.all([
+            supabaseClient.from('repositorios').select('*').order('nombre'),
+            supabaseClient.from('carpetas').select('*').order('nombre'),
+            supabaseClient.from('archivos_repositorio').select('*').order('nombre')
+        ]);
+        if (rRepos.error) throw rRepos.error;
+        if (rCarpetas.error) throw rCarpetas.error;
+        if (rArchivos.error) throw rArchivos.error;
+
+        const repositorios = rRepos.data || [];
+        const carpetas = rCarpetas.data || [];
+        const archivos = rArchivos.data || [];
+        const rutasCarpetas = construirRutasCarpetas(carpetas);
+        const reposPorId = new Map(repositorios.map(r => [r.id, r]));
+        const zip = new JSZip();
+        const rutasUsadas = new Set();
+        const manifiesto = {
+            formato: 'SGDE_DUAFARMA_BIBLIOTECA', version: 1,
+            creado_en: new Date().toISOString(),
+            orden: 'nombre_ascendente', repositorios, carpetas,
+            archivos: archivos.map(a => ({ ...a }))
+        };
+
+        for (let i = 0; i < archivos.length; i++) {
+            const archivo = archivos[i];
+            const repo = reposPorId.get(archivo.repositorio_id);
+            if (!repo) throw new Error(`El archivo "${archivo.nombre}" no tiene un repositorio válido.`);
+            const base = ['biblioteca', nombreSeguroZip(repo.nombre), rutasCarpetas.get(archivo.carpeta_id)].filter(Boolean).join('/');
+            let rutaZip = `${base}/${nombreSeguroZip(archivo.nombre_original || archivo.nombre)}`;
+            if (rutasUsadas.has(rutaZip.toLowerCase())) {
+                const punto = rutaZip.lastIndexOf('.');
+                rutaZip = punto > rutaZip.lastIndexOf('/')
+                    ? `${rutaZip.slice(0, punto)}_${archivo.id}${rutaZip.slice(punto)}` : `${rutaZip}_${archivo.id}`;
+            }
+            rutasUsadas.add(rutaZip.toLowerCase());
+            const { data, error } = await supabaseClient.storage.from(BUCKET_REPO).download(archivo.storage_path);
+            if (error) throw new Error(`No se pudo incluir "${archivo.nombre}": ${error.message}`);
+            zip.file(rutaZip, data);
+            Object.assign(manifiesto.archivos[i], {
+                orden: i,
+                categoria: repo.nombre,
+                carpeta: rutasCarpetas.get(archivo.carpeta_id) || '',
+                ubicacion: [repo.nombre, rutasCarpetas.get(archivo.carpeta_id), archivo.nombre].filter(Boolean).join('/'),
+                fecha: archivo.created_at,
+                zip_path: rutaZip
+            });
+        }
+        zip.file('biblioteca.json', JSON.stringify(manifiesto, null, 2));
+        cambiarEstadoBackup(true, 'Comprimiendo...');
+        const contenido = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } });
+        const url = URL.createObjectURL(contenido);
+        const enlace = document.createElement('a');
+        enlace.href = url; enlace.download = `backup_biblioteca_${fechaHoraBackup()}.zip`;
+        document.body.appendChild(enlace); enlace.click(); enlace.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        await registrarAuditoria('BACKUP', 'repositorios', null, `Copia de seguridad creada: ${archivos.length} archivo(s)`);
+        alert(`Copia de seguridad creada correctamente con ${archivos.length} archivo(s).`);
+    } catch (err) {
+        console.error('[Backup] Error:', err);
+        alert(`No se pudo crear la copia de seguridad.\n\n${err.message || err}`);
+    } finally {
+        cambiarEstadoBackup(false);
+    }
+}
+
+function validarManifiestoBackup(manifiesto, zip) {
+    if (!manifiesto || manifiesto.formato !== 'SGDE_DUAFARMA_BIBLIOTECA' || manifiesto.version !== 1)
+        throw new Error('El ZIP no es una copia de seguridad válida de SGDE DUA FARMA.');
+    if (!Array.isArray(manifiesto.repositorios) || !Array.isArray(manifiesto.carpetas) || !Array.isArray(manifiesto.archivos))
+        throw new Error('El archivo biblioteca.json está incompleto.');
+    for (const archivo of manifiesto.archivos) {
+        if (!archivo.zip_path || !zip.file(archivo.zip_path)) throw new Error(`Falta el archivo "${archivo.nombre || 'desconocido'}" dentro del ZIP.`);
+    }
+}
+
+async function restaurarCopiaSeguridad(archivoZip) {
+    if (!exigirAdminRepositorio() || !archivoZip) return;
+    if (typeof JSZip === 'undefined') return alert('No se pudo cargar el componente ZIP. Revisa tu conexión e inténtalo nuevamente.');
+    cambiarEstadoBackup(true, 'Validando copia...');
+    try {
+        const zip = await JSZip.loadAsync(archivoZip);
+        const entradaManifiesto = zip.file('biblioteca.json');
+        if (!entradaManifiesto) throw new Error('El ZIP no contiene biblioteca.json.');
+        const manifiesto = JSON.parse(await entradaManifiesto.async('string'));
+        validarManifiestoBackup(manifiesto, zip);
+
+        const aceptar = confirm(
+            `Se restaurarán ${manifiesto.archivos.length} archivo(s), ${manifiesto.carpetas.length} carpeta(s) y ${manifiesto.repositorios.length} repositorio(s).\n\n` +
+            'La biblioteca actual será reemplazada completamente. ¿Deseas continuar?'
+        );
+        if (!aceptar) return;
+
+        cambiarEstadoBackup(true, 'Restaurando biblioteca...');
+        const { data: actuales, error: errorActuales } = await supabaseClient.from('archivos_repositorio').select('storage_path');
+        if (errorActuales) throw errorActuales;
+        const rutasActuales = (actuales || []).map(a => a.storage_path);
+        if (rutasActuales.length) {
+            for (let i = 0; i < rutasActuales.length; i += 100) {
+                const { error } = await supabaseClient.storage.from(BUCKET_REPO).remove(rutasActuales.slice(i, i + 100));
+                if (error) throw error;
+            }
+        }
+        const { error: errorBorrar } = await supabaseClient.from('repositorios').delete().not('id', 'is', null);
+        if (errorBorrar) throw errorBorrar;
+
+        if (manifiesto.repositorios.length) {
+            const { error } = await supabaseClient.from('repositorios').insert(manifiesto.repositorios);
+            if (error) throw error;
+        }
+        const pendientes = [...manifiesto.carpetas];
+        const insertadas = new Set();
+        while (pendientes.length) {
+            const listas = pendientes.filter(c => !c.carpeta_padre_id || insertadas.has(c.carpeta_padre_id));
+            if (!listas.length) throw new Error('La jerarquía de carpetas del respaldo no es válida.');
+            const { error } = await supabaseClient.from('carpetas').insert(listas);
+            if (error) throw error;
+            listas.forEach(c => insertadas.add(c.id));
+            listas.forEach(c => pendientes.splice(pendientes.findIndex(p => p.id === c.id), 1));
+        }
+
+        for (let i = 0; i < manifiesto.archivos.length; i++) {
+            const original = manifiesto.archivos[i];
+            const blob = await zip.file(original.zip_path).async('blob');
+            const storagePath = original.storage_path;
+            const { error: errorSubida } = await supabaseClient.storage.from(BUCKET_REPO)
+                .upload(storagePath, blob, { contentType: original.tipo_mime || blob.type, upsert: true });
+            if (errorSubida) throw new Error(`No se pudo restaurar "${original.nombre}": ${errorSubida.message}`);
+            const registro = {
+                id: original.id,
+                repositorio_id: original.repositorio_id,
+                carpeta_id: original.carpeta_id,
+                nombre: original.nombre,
+                nombre_original: original.nombre_original,
+                extension: original.extension,
+                tipo_mime: original.tipo_mime,
+                tamanio_bytes: original.tamanio_bytes,
+                storage_path: original.storage_path,
+                subido_por: original.subido_por,
+                created_at: original.created_at
+            };
+            const { error: errorRegistro } = await supabaseClient.from('archivos_repositorio').insert([registro]);
+            if (errorRegistro) throw errorRegistro;
+        }
+        await registrarAuditoria('RESTORE', 'repositorios', null, `Biblioteca restaurada: ${manifiesto.archivos.length} archivo(s)`);
+        ESTADO = { repoId: null, carpetaId: null, ruta: [] };
+        await cargarRepositorios();
+        alert('Copia de seguridad restaurada correctamente. La biblioteca volvió a su organización original.');
+    } catch (err) {
+        console.error('[Restauración] Error:', err);
+        alert(`No se pudo restaurar la copia de seguridad.\n\n${err.message || err}`);
+    } finally {
+        cambiarEstadoBackup(false);
+    }
+}
+
+// ------------------------------------------------------------
 // EVENTOS DE UI
 // ------------------------------------------------------------
 function enlazarEventos() {
@@ -498,6 +697,14 @@ function enlazarEventos() {
     document.getElementById('btn-eliminar-repo').addEventListener('click', solicitarClaveEliminarRepositorio);
     document.getElementById('form-clave-eliminar-repo').addEventListener('submit', validarClaveYEliminarRepositorio);
     document.getElementById('rp-clave-eliminar').addEventListener('input', (e) => e.target.classList.remove('is-invalid'));
+
+    document.getElementById('btn-crear-backup').addEventListener('click', crearCopiaSeguridad);
+    document.getElementById('btn-restaurar-backup').addEventListener('click', () => document.getElementById('rp-input-backup').click());
+    document.getElementById('rp-input-backup').addEventListener('change', async (e) => {
+        const archivo = e.target.files[0];
+        e.target.value = '';
+        await restaurarCopiaSeguridad(archivo);
+    });
 
     document.getElementById('btn-nueva-carpeta').addEventListener('click', () => $('#modal-nueva-carpeta').modal('show'));
     document.getElementById('form-nueva-carpeta').addEventListener('submit', async (e) => {
