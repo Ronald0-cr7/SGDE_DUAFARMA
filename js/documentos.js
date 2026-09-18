@@ -9,6 +9,10 @@
 // ============================================================
 
 const BUCKET = 'documentos';
+const hoyLocal = () => {
+    const hoy = new Date();
+    return `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`;
+};
 
 document.addEventListener('DOMContentLoaded', async () => {
     const sesion = JSON.parse(localStorage.getItem('sesion_usuario') || 'null');
@@ -60,6 +64,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const registro = {
                 categoria, nombre, version,
                 fecha_vigencia: vigencia,
+                estado: vigencia && vigencia < hoyLocal() ? 'obsoleto' : 'vigente',
                 archivo_path: rutaSegura,
                 archivo_nombre: archivo.name,
                 subido_por: sesion.usuario
@@ -84,6 +89,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 async function cargarDocumentos() {
+    const hoy = hoyLocal();
+    const { error: errorVigencia } = await supabaseClient.from('documentos')
+        .update({ estado: 'obsoleto' }).eq('estado', 'vigente').lt('fecha_vigencia', hoy);
+    if (errorVigencia) console.error('No se pudo actualizar la vigencia de los documentos:', errorVigencia);
     const { data, error } = await supabaseClient
         .from('documentos')
         .select('*')
@@ -93,6 +102,7 @@ async function cargarDocumentos() {
 
     const tbody = document.querySelector('#tabla-documentos tbody');
     tbody.innerHTML = data.map(d => {
+        const estado = d.estado === 'obsoleto' || (d.fecha_vigencia && d.fecha_vigencia < hoy) ? 'obsoleto' : 'vigente';
         const enlace = d.archivo_path
             ? `<a href="#" onclick="descargarDocumento('${d.archivo_path}','${(d.archivo_nombre || 'documento').replace(/'/g, "")}'); return false;">
                  <i class="fas fa-download"></i> ${d.archivo_nombre || 'Descargar'}
@@ -100,10 +110,10 @@ async function cargarDocumentos() {
             : (d.url_archivo ? `<a href="${d.url_archivo}" target="_blank">Ver enlace</a>` : '-');
 
         return `
-        <tr class="${d.estado === 'obsoleto' ? 'text-muted' : ''}">
+        <tr class="${estado === 'obsoleto' ? 'text-muted' : ''}">
             <td>${d.categoria}</td><td>${d.nombre}</td><td>${d.version}</td>
             <td>${d.fecha_vigencia || ''}</td>
-            <td><span class="badge badge-${d.estado === 'vigente' ? 'success' : 'secondary'}">${d.estado}</span></td>
+            <td><span class="badge badge-${estado === 'vigente' ? 'success' : 'secondary'}">${estado}</span></td>
             <td>${enlace}</td>
             <td class="solo-escritura text-nowrap">
                 <button class="btn btn-sm btn-outline-primary" title="Editar" onclick='abrirEdicionDocumento(${JSON.stringify(d)})'>
@@ -153,6 +163,7 @@ async function guardarEdicionDocumento(sesion) {
         const nuevoArchivo = document.getElementById('ed-archivo').files[0];
 
         const cambios = { categoria, nombre, version, fecha_vigencia: vigencia };
+        if (vigencia && vigencia < hoyLocal()) cambios.estado = 'obsoleto';
 
         // Si el usuario seleccionó un archivo nuevo, lo sube y reemplaza el anterior
         if (nuevoArchivo) {

@@ -78,7 +78,11 @@
         const ff=fr+4;unir(ws,`A${ff}:E${ff+4}`,'',{});unir(ws,`F${ff}:M${ff+4}`,'',{});
         unir(ws,`A${ff+5}:E${ff+5}`,'FIRMA:',{bold:true,align:'left'});unir(ws,`F${ff+5}:M${ff+5}`,'FIRMA:',{bold:true,align:'left'});
         unir(ws,`A${ff+7}:M${ff+7}`,'OBSERVACIONES:',{bold:true,align:'left'});unir(ws,`A${ff+8}:M${ff+9}`,'',{});
-        ws.pageSetup.printArea=`A2:M${ff+9}`;ws.headerFooter.oddFooter='&LDUA FARMA S.A.C.&CActa de recepción&R&P de &N';
+        unir(ws,`E${ff+11}:K${ff+11}`,'',{border:false});
+        for(let col=5;col<=11;col++) ws.getCell(ff+11,col).border={bottom:{style:'thin',color:{argb:C.negro}}};
+        unir(ws,`E${ff+12}:K${ff+12}`,'DIRECTOR TÉCNICO',{border:false});
+        unir(ws,`E${ff+13}:K${ff+13}`,'DROGUERÍA DUA FARMA S.A.C.',{border:false});
+        ws.pageSetup.printArea=`A2:M${ff+13}`;ws.headerFooter.oddFooter='&LDUA FARMA S.A.C.&CActa de recepción&R&P de &N';
         await descargar(wb,`Acta_${seguro(acta.guia_numero)}_${acta.fecha||''}.xlsx`);
     }
 

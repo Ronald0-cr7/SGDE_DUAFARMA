@@ -108,8 +108,7 @@ async function guardarActa(e) {
         entrega_termino: document.getElementById('rc-entrega-termino').value || null,
         recibido_por: document.getElementById('rc-recibido-por').value.trim(),
         recepcion_inicio: document.getElementById('rc-recepcion-inicio').value || null,
-        recepcion_termino: document.getElementById('rc-recepcion-termino').value || null,
-        director_tecnico: document.getElementById('rc-director').value.trim()
+        recepcion_termino: document.getElementById('rc-recepcion-termino').value || null
     };
     btn.disabled = true;
     try {
@@ -237,7 +236,7 @@ function cargarActaEnFormulario(acta) {
         'rc-tipo':acta.tipo_ingreso, 'rc-transportista':acta.transportista_nombre,
         'rc-entrega-inicio':acta.entrega_inicio?.slice(0, 16), 'rc-entrega-termino':acta.entrega_termino?.slice(0, 16),
         'rc-recibido-por':acta.recibido_por, 'rc-recepcion-inicio':acta.recepcion_inicio?.slice(0, 16),
-        'rc-recepcion-termino':acta.recepcion_termino?.slice(0, 16), 'rc-director':acta.director_tecnico
+        'rc-recepcion-termino':acta.recepcion_termino?.slice(0, 16)
     };
     Object.entries(campos).forEach(([id, valor]) => { document.getElementById(id).value = valor || ''; });
     const tbody = document.querySelector('#tabla-detalle-editor tbody');
