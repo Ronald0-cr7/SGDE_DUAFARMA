@@ -139,8 +139,8 @@
                 </div>
                 <div class="form-row">
                     <div class="form-group col-md-4"><label for="ks-tipo-doc">Tipo de documento *</label><select id="ks-tipo-doc" class="form-control" required><option value="">Seleccionar</option><option>Guía de remisión</option><option>Factura</option><option>Boleta</option><option>Otro</option></select></div>
-                    <div class="form-group col-md-4"><label for="ks-num-doc">Número de documento *</label><input id="ks-num-doc" class="form-control" required maxlength="100"></div>
-                    <div class="form-group col-md-4"><label for="ks-guia">Guía de remisión</label><input id="ks-guia" class="form-control" maxlength="100"><small class="form-text text-muted">Si el documento es una guía, se utiliza su número.</small></div>
+                    <div class="form-group col-md-4"><label id="ks-num-label" for="ks-num-doc">Número de documento *</label><input id="ks-num-doc" class="form-control" required maxlength="100"></div>
+
                 </div>
                 <div class="form-row">
                     <div class="form-group col-md-8"><label for="ks-lote">Lote disponible *</label><select id="ks-lote" class="form-control" required></select></div>
@@ -148,7 +148,12 @@
                 </div>
                 <p id="ks-disponible" class="text-primary" role="status"></p>
                 <div class="form-group"><label for="ks-cantidad">Cantidad retirada *</label><input id="ks-cantidad" type="number" min="0.000001" step="any" class="form-control" required></div>
-                <div class="form-group"><label for="ks-observaciones">Observaciones</label><textarea id="ks-observaciones" class="form-control" maxlength="2000"></textarea></div>
+                <div class="form-row">
+                    <div class="form-group col-md-6"><label for="ks-realizado">Realizado por</label><input id="ks-realizado" class="form-control" value="Sameer Hasnain" readonly></div>
+                    <div class="form-group col-md-6"><label for="ks-verificado">Verificado por</label><input id="ks-verificado" class="form-control" value="Taylor Lujan" readonly></div>
+                </div>
+                <div class="form-group"><label for="ks-observacion-opcion">Observaciones</label><select id="ks-observacion-opcion" class="form-control"><option value="CONFORME">Conforme</option><option value="texto">Escribir observación</option></select></div>
+                <div id="ks-observacion-texto" class="form-group d-none"><label for="ks-observaciones">Escribe la observación</label><textarea id="ks-observaciones" class="form-control" maxlength="2000" disabled></textarea></div>
             </fieldset>
         </div>
         <div class="modal-footer"><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button><button id="ks-guardar" type="submit" class="btn btn-primary">Registrar salida</button></div>

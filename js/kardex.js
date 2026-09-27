@@ -144,6 +144,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         await aplicarFiltroFechas();
     });
     document.getElementById('tabla-salidas-pendientes').addEventListener('click', asignarSalidaPendiente);
+    document.getElementById('ks-tipo-doc').addEventListener('change', actualizarDocumentoSalida);
+    document.getElementById('ks-observacion-opcion').addEventListener('change', actualizarObservacionSalida);
     document.getElementById('ks-lote').addEventListener('change', mostrarLoteSalida);
     document.getElementById('form-salida').addEventListener('submit', guardarSalidaKardex);
     $('#modal-salida').on('hide.bs.modal', e => { if (GUARDANDO_SALIDA) e.preventDefault(); });
@@ -305,6 +307,18 @@ function errorSalida(mensaje = '') {
     el.classList.toggle('d-none', !mensaje);
 }
 
+function actualizarDocumentoSalida() {
+    const guia = document.getElementById('ks-tipo-doc').value === 'Guía de remisión';
+    document.getElementById('ks-num-label').textContent = guia ? 'Número de guía de remisión *' : 'Número de documento *';
+    document.querySelector('label[for="ks-fecha"]').textContent = guia ? 'Fecha de guía de remisión *' : 'Fecha del documento *';
+}
+
+function actualizarObservacionSalida() {
+    const escribir = document.getElementById('ks-observacion-opcion').value === 'texto';
+    document.getElementById('ks-observacion-texto').classList.toggle('d-none', !escribir);
+    document.getElementById('ks-observaciones').disabled = !escribir;
+}
+
 async function abrirSalidaKardex() {
     if (!sesionPuedeRegistrarSalida()) return;
     if (SOLICITUD_SALIDA) {
@@ -316,6 +330,8 @@ async function abrirSalidaKardex() {
     if (!seleccionado) return alert('Selecciona un Kardex de acta.');
     if (Number(seleccionado.salidas_pendientes)>0) return alert('Asigna primero las salidas anteriores de este producto.');
     document.getElementById('form-salida').reset();
+    actualizarDocumentoSalida();
+    actualizarObservacionSalida();
     SOLICITUD_SALIDA = null;
     document.getElementById('ks-campos').disabled = false;
     errorSalida();
@@ -383,9 +399,9 @@ async function guardarSalidaKardex(e) {
             p_registro: {
                 producto_id: kardex.producto_id, recepcion_id: kardex.recepcion_id, fecha: texto('ks-fecha'),
                 proveedor_cliente: texto('ks-cliente'), tipo_doc: texto('ks-tipo-doc'),
-                num_doc: texto('ks-num-doc'), guia_numero: texto('ks-guia') || (texto('ks-tipo-doc') === 'Guía de remisión' ? texto('ks-num-doc') : ''),
+                num_doc: texto('ks-num-doc'), guia_numero: texto('ks-tipo-doc') === 'Guía de remisión' ? texto('ks-num-doc') : '',
                 lote: lote.lote, fecha_venc: lote.fecha_venc, salida: cantidad,
-                observaciones: texto('ks-observaciones')
+                observaciones: texto('ks-observacion-opcion') === 'CONFORME' ? 'CONFORME' : texto('ks-observaciones')
             }
         };
     }
