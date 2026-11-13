@@ -85,13 +85,6 @@
         return crypto.subtle.deriveKey({ name: 'PBKDF2', salt, iterations: 310000, hash: 'SHA-256' },
             material, { name: 'AES-GCM', length: 256 }, false, ['encrypt','decrypt']);
     }
-    async function cifrar(bytes, password) {
-        const salt = crypto.getRandomValues(new Uint8Array(16));
-        const iv = crypto.getRandomValues(new Uint8Array(12));
-        const key = await clave(password, salt);
-        const data = await crypto.subtle.encrypt({ name: 'AES-GCM', iv, additionalData: MAGIC }, key, bytes);
-        return new Blob([MAGIC, salt, iv, data], { type: 'application/octet-stream' });
-    }
     async function descifrar(file, password) {
         const data = new Uint8Array(await file.arrayBuffer());
         if (data.length < 52 || !MAGIC.every((b, i) => data[i] === b)) {
@@ -103,7 +96,7 @@
         } catch (_) { throw new Error('Contraseña de la copia incorrecta o archivo dañado. No se modificó ningún registro.'); }
     }
     function validar(m, zip) {
-        if (!m || m.formato !== 'SGDE_DUAFARMA_COMPLETO' || m.version !== 2 ||
+        if (!m || m.formato !== 'SGDE_DUAFARMA_COMPLETO' || ![2, 3].includes(m.version) ||
             !m.tablas || !Array.isArray(m.esquema) || !Array.isArray(m.archivos) ||
             Object.keys(m.tablas).length !== TABLAS.length || TABLAS.some(t => !Array.isArray(m.tablas[t]))) {
             throw new Error('La copia no contiene los diez conjuntos de registros requeridos.');
@@ -113,7 +106,8 @@
         for (const f of m.archivos) {
             const id = `${f.bucket}/${f.path}`;
             if (!['repositorios','documentos'].includes(f.bucket) || typeof f.path !== 'string' || !f.path ||
-                !/^archivos\/[0-9]+$/.test(f.zip_path) || !/^[a-f0-9]{64}$/.test(f.sha256) ||
+                !(m.version === 2 ? /^archivos\/[0-9]+$/.test(f.zip_path) :
+                    /^(repositorios|documentos)\/(?!.*(?:^|\/)\.{1,2}(?:\/|$))[^\\\x00]+$/.test(f.zip_path)) || !/^[a-f0-9]{64}$/.test(f.sha256) ||
                 !Number.isSafeInteger(f.bytes) || f.bytes < 0 || f.bytes > 50000000 ||
                 rutas.has(id) || entradas.has(f.zip_path) || !zip.file(f.zip_path)) {
                 throw new Error('La lista de archivos está incompleta, duplicada o tiene un formato inválido.');
@@ -126,28 +120,78 @@
             }
         }
     }
-    function descargar(blob) {
-        const url = URL.createObjectURL(blob);
-        const enlace = document.createElement('a');
-        enlace.href = url;
-        enlace.download = `respaldo_completo_SGDE_${new Date().toISOString().replace(/[:.]/g,'-')}.sgde`;
-        document.body.appendChild(enlace); enlace.click(); enlace.remove();
-        setTimeout(() => URL.revokeObjectURL(url), 60000);
+    function segmento(valor) {
+        const limpio = String(valor || 'Sin nombre').normalize('NFC')
+            .replace(/[<>:"/\\|?*\x00-\x1f]/g, '_').replace(/[. ]+$/g, '').trim().slice(0, 100);
+        return !limpio || /^\.+$/.test(limpio) ? 'Sin nombre' :
+            /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(limpio) ? `_${limpio}` : limpio;
+    }
+    function organizar(tablas) {
+        const usadas = new Set();
+        function unica(ruta) {
+            let resultado = ruta; let n = 2;
+            const punto = ruta.lastIndexOf('.');
+            const extension = punto > ruta.lastIndexOf('/') ? ruta.slice(punto) : '';
+            const base = extension ? ruta.slice(0, punto) : ruta;
+            while (usadas.has(resultado.toLowerCase())) resultado = `${base} (${n++})${extension}`;
+            usadas.add(resultado.toLowerCase()); return resultado;
+        }
+        const repos = new Map(tablas.repositorios.map(r => [String(r.id), unica(`repositorios/${segmento(r.nombre)}`)]));
+        const carpetas = new Map(tablas.carpetas.map(c => [String(c.id), c]));
+        const rutas = new Map();
+        function carpeta(id, visitadas = new Set()) {
+            id = String(id);
+            if (rutas.has(id)) return rutas.get(id);
+            const c = carpetas.get(id);
+            if (!c || visitadas.has(id)) throw new Error('La jerarquía de carpetas es inválida.');
+            visitadas.add(id);
+            const padre = c.carpeta_padre_id ? carpeta(c.carpeta_padre_id, visitadas) : repos.get(String(c.repositorio_id));
+            if (!padre) throw new Error('Falta el repositorio de una carpeta.');
+            const ruta = unica(`${padre}/${segmento(c.nombre)}`);
+            rutas.set(id, ruta); return ruta;
+        }
+        tablas.carpetas.forEach(c => carpeta(c.id));
+        const archivos = new Map();
+        for (const a of tablas.archivos_repositorio) {
+            const padre = a.carpeta_id ? carpeta(a.carpeta_id) : repos.get(String(a.repositorio_id));
+            if (!padre) throw new Error('Falta el repositorio de un archivo.');
+            let nombre = segmento(a.nombre || a.nombre_original);
+            const ext = segmento(a.extension || '').replace(/^\./, '');
+            if (a.extension && !nombre.toLowerCase().endsWith(`.${ext.toLowerCase()}`)) nombre += `.${ext}`;
+            const key = `repositorios/${a.storage_path}`;
+            if (!archivos.has(key)) archivos.set(key, unica(`${padre}/${nombre}`));
+        }
+        const categorias = new Map();
+        for (const d of tablas.documentos) {
+            const categoria = d.categoria || 'Sin categoría';
+            if (!categorias.has(categoria)) categorias.set(categoria, unica(`documentos/${segmento(categoria)}`));
+            if (!d.archivo_path) continue;
+            const key = `documentos/${d.archivo_path}`;
+            if (!archivos.has(key)) archivos.set(key, unica(`${categorias.get(categoria)}/${segmento(d.archivo_nombre || d.nombre)}`));
+        }
+        return { archivos, directorios: [...repos.values(), ...rutas.values(), ...categorias.values()] };
     }
     async function crear() {
         if (ocupado) return;
         let credenciales;
+        let writer;
         try {
             if (!requisitos()) return;
             bloquear(true);
-            const password = await pedirSecreto('Autorizar copia completa', 'Ingresa tu contraseña de administrador. La copia incluirá registros de todos los módulos y sus archivos. Evita que otros usuarios hagan cambios durante el proceso.');
+            if (!window.showSaveFilePicker) throw new Error('Para crear el ZIP directamente en disco sin saturar la memoria, abre esta página en Chrome o Edge desde una ventana normal.');
+            const handle = await window.showSaveFilePicker({
+                suggestedName: `respaldo_completo_SGDE_${new Date().toISOString().replace(/[:.]/g, '-')}.zip`,
+                types: [{ description: 'Copia de seguridad ZIP', accept: { 'application/zip': ['.zip'] } }],
+            });
+            const password = await pedirSecreto('Autorizar descarga del respaldo', 'Ingresa tu contraseña ACTUAL de administrador para autorizar la descarga. No se cambiará tu contraseña ni se creará una nueva. El ZIP se podrá abrir sin contraseña. Evita cambios de otros usuarios durante la copia.');
             if (password === null) return;
             credenciales = { usuario: SESION.usuario, password };
-            const secreto = await pedirSecreto('Proteger la copia', 'Crea una contraseña de al menos 12 caracteres y guárdala en un lugar seguro. Sin ella no podrás recuperar la copia.', true);
-            if (secreto === null) return;
             progreso('Leyendo registros de todos los módulos…');
             const snapshot = await api('snapshot', credenciales);
-            const zip = new JSZip(); const archivos = [];
+            const organizacion = organizar(snapshot.tablas);
+            writer = await handle.createWritable();
+            const zip = new BackupZip(writer); const archivos = [];
+            for (const directorio of organizacion.directorios) await zip.agregar(`${directorio}/`, new Uint8Array());
             for (let i = 0; i < snapshot.archivos.length; i++) {
                 const f = snapshot.archivos[i];
                 progreso(`Descargando archivo ${i+1} de ${snapshot.archivos.length}…`);
@@ -155,25 +199,31 @@
                 if (error) throw new Error(`No se pudo respaldar ${f.bucket}/${f.path}. No se generó una copia incompleta.`);
                 const bytes = await data.arrayBuffer();
                 if (bytes.byteLength > 50000000) throw new Error('La copia contiene un archivo mayor que el límite de restauración de 50 MB.');
-                const zip_path = `archivos/${i}`;
-                zip.file(zip_path, bytes);
+                const zip_path = organizacion.archivos.get(`${f.bucket}/${f.path}`);
+                if (!zip_path) throw new Error(`No se encontró la carpeta de ${f.bucket}/${f.path}.`);
+                await zip.agregar(zip_path, bytes);
                 archivos.push({ bucket: f.bucket, path: f.path, zip_path, bytes: bytes.byteLength,
                     tipo_mime: f.metadata?.mimetype || data.type, sha256: await hash(bytes) });
             }
             progreso('Comprobando que la información no haya cambiado…');
             const final = await api('snapshot', credenciales);
             if (final.revision !== snapshot.revision) throw new Error('Hubo cambios durante la copia. Vuelve a intentarlo sin otros usuarios trabajando.');
-            const manifiesto = { formato: 'SGDE_DUAFARMA_COMPLETO', version: 2, creado_en: new Date().toISOString(),
+            const manifiesto = { formato: 'SGDE_DUAFARMA_COMPLETO', version: 3, creado_en: new Date().toISOString(),
                 tablas: snapshot.tablas, esquema: snapshot.esquema, archivos };
-            zip.file('sgde.json', JSON.stringify(manifiesto));
-            progreso('Empaquetando y cifrando la copia completa…');
-            const bytes = await zip.generateAsync({ type: 'uint8array', compression: 'STORE' });
-            descargar(await cifrar(bytes, secreto));
-            progreso(`Copia generada: ${TABLAS.reduce((n,t) => n + snapshot.tablas[t].length,0)} registros y ${archivos.length} archivos. Comprueba la descarga y guarda su contraseña.`);
-            await registrarAuditoria('BACKUP','sistema',null,`Copia completa cifrada generada: ${archivos.length} archivos`);
+            await zip.agregar('sgde.json', JSON.stringify(manifiesto));
+            for (const tabla of TABLAS) await zip.agregar(`datos/${tabla}.json`, JSON.stringify(snapshot.tablas[tabla], null, 2));
+            await zip.agregar('LEEME.txt', 'COPIA DE SEGURIDAD SGDE\r\n\r\nrepositorios/: repositorios y sus carpetas originales.\r\ndocumentos/: documentos organizados por categoría.\r\ndatos/: registros de cada módulo en JSON.\r\nsgde.json: manifiesto requerido para restaurar desde el sistema.\r\n\r\nEl ZIP no tiene contraseña. Contiene datos y credenciales del sistema; guárdalo en un lugar privado.\r\nCrear esta copia no cambia usuarios ni contraseñas. Restaurarla recupera los usuarios y contraseñas de la fecha de la copia.\r\n');
+            progreso('Finalizando el ZIP…');
+            await zip.cerrar(); writer = null;
+            progreso(`ZIP guardado: ${TABLAS.reduce((n,t) => n + snapshot.tablas[t].length,0)} registros y ${archivos.length} archivos organizados por carpetas.`);
+            await registrarAuditoria('BACKUP','sistema',null,`Copia completa ZIP generada: ${archivos.length} archivos`);
         } catch (error) {
+            if (error.name === 'AbortError') { progreso('Creación de copia cancelada.'); return; }
             progreso('No se completó la copia de seguridad.'); alert(error.message);
-        } finally { if (credenciales) credenciales.password = ''; bloquear(false); }
+        } finally {
+            if (writer) await writer.abort().catch(() => {});
+            if (credenciales) credenciales.password = ''; bloquear(false);
+        }
     }
     async function restaurar(file) {
         if (ocupado || !file) return;
@@ -181,10 +231,15 @@
         try {
             if (!requisitos()) return;
             bloquear(true);
-            const secreto = await pedirSecreto('Abrir copia completa', 'Ingresa la contraseña con la que se protegió este archivo .sgde.');
-            if (secreto === null) return;
-            progreso('Descifrando y revisando la copia…');
-            const zip = await JSZip.loadAsync(await descifrar(file,secreto), { checkCRC32: true });
+            const cabecera = new Uint8Array(await file.slice(0, 8).arrayBuffer());
+            let contenido;
+            if (MAGIC.every((b, i) => cabecera[i] === b)) {
+                const secreto = await pedirSecreto('Abrir copia antigua', 'Ingresa la contraseña de esta copia antigua .sgde. Los ZIP nuevos no necesitan esta contraseña.');
+                if (secreto === null) return;
+                contenido = await descifrar(file, secreto);
+            } else contenido = await file.arrayBuffer();
+            progreso('Revisando la copia…');
+            const zip = await JSZip.loadAsync(contenido);
             const entrada = zip.file('sgde.json');
             if (!entrada) throw new Error('Falta el manifiesto sgde.json.');
             const m = JSON.parse(await entrada.async('string')); validar(m, zip);
