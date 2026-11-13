@@ -187,7 +187,7 @@ eliminarlos y buscarlos por nombre.
 | Numeral | Cómo lo resuelve el sistema |
 |---|---|
 | **6.2.5.16** — Solo personal autorizado, con registro de cambios | Login con roles (`rol_guard.js`), y cada INSERT/UPDATE relevante escribe automáticamente en `log_auditoria` (usuario, acción, tabla, fecha) — visible en el módulo **Auditoría**. |
-| **6.2.5.17** — Backup y procedimiento ante pérdida | Supabase realiza backups automáticos de la base de datos (diarios en el plan gratuito, configurable point-in-time en planes pagos). Se recomienda documentar un POE de contingencia (ya incluido como documento de ejemplo en `schema.sql`). |
+| **6.2.5.17** — Backup y procedimiento ante pérdida | El respaldo completo cifrado de los datos de los módulos requiere instalar la migración y la Edge Function descritas en [RESPALDO_COMPLETO.md](RESPALDO_COMPLETO.md). Incluye las diez tablas operativas y los archivos referenciados de Documentos y Repositorios. Debe comprobarse mediante un simulacro; no se presupone la disponibilidad de copias recuperables del proveedor en el plan gratuito. |
 | **6.2.5.18** — Acceso del personal al MOF/POEs vigentes | Módulo **Documentos**: cada usuario ve la versión vigente; al subir una nueva versión, la anterior se marca "obsoleta" automáticamente (trigger `fn_obsoletar_version_anterior`). |
 
 ## Flujo de demostración sugerido para la sustentación

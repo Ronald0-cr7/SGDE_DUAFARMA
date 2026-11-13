@@ -1,0 +1,4 @@
+[functions.sgde-backup]
+# El SGDE aún usa su tabla usuarios. La función comprueba las credenciales
+# del administrador en el servidor y usa un token temporal para restaurar.
+verify_jwt = false

@@ -97,13 +97,15 @@
             <button class="btn btn-outline-danger solo-admin" id="btn-eliminar-repo"><i class="fas fa-trash"></i> Eliminar repositorio</button>
             <button class="btn btn-success solo-admin" id="btn-crear-backup"><i class="fas fa-file-archive"></i> Crear copia de seguridad</button>
             <button class="btn btn-outline-success solo-admin" id="btn-restaurar-backup"><i class="fas fa-undo-alt"></i> Restaurar copia de seguridad</button>
-            <input type="file" id="rp-input-backup" accept=".zip,application/zip" style="display:none;">
+            <input type="file" id="rp-input-backup" accept=".sgde,application/octet-stream" style="display:none;">
             <div class="flex-grow-1"></div>
             <div style="min-width:260px;">
                 <label class="mb-1">Buscar en este repositorio</label>
                 <input type="text" class="form-control" id="rp-buscar" placeholder="Nombre del archivo...">
             </div>
         </div>
+        <p class="small text-muted mt-3 mb-1">La copia de seguridad incluye todos los módulos y sus archivos. Se descarga cifrada como archivo .sgde y requiere una contraseña para recuperarla. Guarda esa contraseña en un lugar seguro.</p>
+        <p class="small mb-0" id="rp-backup-estado" role="status" aria-live="polite"></p>
     </div>
 </div>
 
@@ -288,5 +290,6 @@
 <script src="../js/supabaseClient.js"></script>
 <script src="../js/rol_guard.js"></script>
 <script src="../js/repositorios.js"></script>
+<script src="../js/respaldoCompleto.js"></script>
 </body>
 </html>

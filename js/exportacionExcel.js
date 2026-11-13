@@ -20,11 +20,22 @@
     }
     function fecha(valor, hora=false) {
         if(!valor) return '';
-        const d=new Date(String(valor).length===10?`${valor}T00:00:00`:valor);
-        if(Number.isNaN(d.getTime())) return valor;
-        return new Intl.DateTimeFormat('es-PE',hora
-            ? {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}
-            : {day:'2-digit',month:'2-digit',year:'numeric'}).format(d);
+        // El formulario histórico guarda datetime-local sin zona y, al editar,
+        // recupera los primeros 16 caracteres del TIMESTAMPTZ de Supabase.
+        // Estos campos representan la hora escrita en el acta: convertirlos
+        // con new Date(valor) restaba cinco horas en Perú. Conservar los mismos
+        // componentes que muestra el formulario, sin alterar registros previos.
+        const partes=String(valor).match(/^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?/);
+        if(!partes) return String(valor);
+        const [,anio,mes,dia,horas,minutos]=partes;
+        const calendario=`${dia}/${mes}/${anio}`;
+        return hora && horas!==undefined ? `${calendario}, ${horas}:${minutos}` : calendario;
+    }
+    function hoyPeru() {
+        const partes=new Intl.DateTimeFormat('en-US',{timeZone:'America/Lima',year:'numeric',month:'2-digit',day:'2-digit'})
+            .formatToParts(new Date());
+        const valor=tipo=>partes.find(p=>p.type===tipo).value;
+        return `${valor('year')}-${valor('month')}-${valor('day')}`;
     }
     const seguro = t => String(t||'documento').replace(/[\\/:*?"<>|]/g,'-').replace(/\s+/g,'_');
 
@@ -114,7 +125,7 @@
         for(let i=0;i<total;i++){const f=11+i,m=movimientos[i];if(m)ws.getRow(f).values=[Number(m.salida)>0 && m.tipo_doc && m.tipo_doc!=='Guía de remisión'?'':fecha(m.fecha),Number(m.salida)>0 && m.tipo_doc && m.tipo_doc!=='Guía de remisión'?'':m.guia_numero||m.num_doc||'',m.tipo_doc==='Guía de remisión'?'':m.tipo_doc||'',m.tipo_doc==='Guía de remisión'?'':m.num_doc||'',m.tipo_doc==='Guía de remisión'?'':fecha(m.fecha_doc),m.proveedor_cliente||'',m.lote||'',fecha(m.fecha_venc),Number(m.ingreso||0),Number(m.salida||0),Number(m.saldo||0),Number(m.salida)>0?'Sameer Hasnain':m.realizado_por||'',Number(m.salida)>0?'Taylor Lujan':m.verificado_por||'',m.observaciones||''];ws.getRow(f).height=m?34:18;rango(ws,`A${f}:N${f}`,{size:7,fill:m && Number(m.ingreso)>0?C.verde:C.blanco});}
         const fs=11+movimientos.length;unir(ws,`F${fs}:F${fs}`,`STOCK: ${movimientos.length?movimientos[movimientos.length-1].saldo:(producto.stock||0)}`,{bold:true,size:10});
         const fp=11+total+2;unir(ws,`A${fp}:N${fp}`,'FOR-ALM-011 / VERSIÓN 001',{bold:true,align:'left',border:false});ws.pageSetup.printArea=`A1:N${fp}`;ws.headerFooter.oddFooter='&LDUA FARMA S.A.C.&CKardex de producto&R&P de &N';
-        await descargar(wb,`Kardex_${seguro(producto.codigo)}_${producto.recepcion_id ? seguro(producto.acta_guia || 'Acta')+'_'+producto.recepcion_id+'_' : ''}${new Date().toISOString().slice(0,10)}.xlsx`);
+        await descargar(wb,`Kardex_${seguro(producto.codigo)}_${producto.recepcion_id ? seguro(producto.acta_guia || 'Acta')+'_'+producto.recepcion_id+'_' : ''}${hoyPeru()}.xlsx`);
     }
     window.SGDEExcel={exportarActaExcel,exportarKardexPlantilla};
 })();

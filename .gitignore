@@ -1,2 +1,5 @@
 .test-tools/node_modules/
 *.tmp
+.test-tools/runtime/
+*.sgde
+SUBIR_A_GITHUB/
