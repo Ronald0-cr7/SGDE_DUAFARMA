@@ -41,10 +41,13 @@ Los perfiles inactivos pueden quedarse sin cuenta. Para volver a activarlos, vin
    ```
 
 4. Publica el sitio actualizado. Los archivos de los buckets privados se descargan desde la sesión del SGDE. Si guardaste enlaces públicos antiguos como enlaces externos, sustitúyelos por archivos gestionados en Documentos.
+5. Aplica [la migración de administración de cuentas](sql/migracion_crud_auth.sql) para restringir la edición de perfiles a la Edge Function y proteger al último administrador vinculado. En una actualización, despliega primero la nueva versión de `sgde-usuarios`, publica el formulario actualizado y aplica esta migración.
 
 ## 3. Comprobar
 
 - Comprueba que el administrador entra con su correo y que puede gestionar usuarios y descargar un respaldo nuevo.
+- Con una cuenta de prueba, crea el usuario desde el formulario, comprueba el correo en Authentication, edítalo, desactívalo, actívalo y elimínalo. El perfil eliminado queda inactivo y desvinculado en el SGDE. Los respaldos anteriores que referencien el UUID eliminado requieren resolver ese vínculo antes de restaurarlos.
+- Usuarios y Roles lista las cuentas de Authentication, incluidas las que todavía no tienen perfil. Para habilitar el ingreso al SGDE de una cuenta existente, ábrela con Actualizar y marca **Dar acceso al SGDE y asignar un rol**. Luego prueba el inicio de sesión con el correo y la contraseña de esa cuenta.
 - Con un asistente, prueba recepción, Kardex y edición de documentos. Con un auxiliar, comprueba que la consulta funciona y que los cambios se rechazan.
 - Confirma que una sesión sin perfil o con un perfil inactivo no ve los datos y que los archivos privados requieren una sesión autorizada.
 - Ejecuta **Security Advisor** de Supabase otra vez y revisa las tablas que figuran en cada alerta. Revisa los registros disponibles para evaluar accesos anteriores.

@@ -84,10 +84,11 @@ se generan como `.xlsx` sin macros mediante ExcelJS.
 
 ## Registro de salidas del Kardex
 
-Para separar los Kardex por **acta y producto**, ejecuta en el SQL Editor de
-Supabase `sql/migracion_kardex_por_acta.sql`, después de las migraciones de la
-lista siguiente. Conserva los movimientos y recalcula los saldos por acta.
-No vuelvas a ejecutar `schema.sql` sobre una base de datos que ya existe.
+El **Kardex por lote** reúne ingresos de diferentes actas cuando coinciden
+el producto, el lote, el vencimiento, el fabricante, la procedencia y el
+registro sanitario. La migración conserva los movimientos y sus actas de
+origen, y recalcula los saldos. Los registros con datos insuficientes para
+confirmar la coincidencia conservan su separación por acta.
 
 Requisitos previos, en este orden (solo si aún no están instalados):
 
@@ -95,26 +96,33 @@ Requisitos previos, en este orden (solo si aún no están instalados):
 2. `sql/migracion_edicion_kardex.sql`
 3. `sql/migracion_edicion_actas.sql`
 4. `sql/migracion_salidas_kardex.sql`
-5. `sql/migracion_kardex_por_acta.sql` (**nueva corrección; ejecutar al final**)
-6. `sql/migracion_eliminar_kardex.sql` (botón Eliminar Kardex; ejecutar después del paso 5)
+5. `sql/migracion_kardex_por_acta.sql`
+6. `sql/migracion_eliminar_kardex.sql`
+7. `sql/migracion_documentos_salidas_kardex.sql`
+8. `sql/migracion_cantidades_enteras.sql`
 
-**Fechas:** indica Desde/Hasta y pulsa **Mostrar por fechas**. Se filtran los
-Kardex por la fecha del acta, incluyendo ambos extremos, en el selector y la
-lista. **Mostrar todos** limpia el filtro. Cada Kardex conserva todo su historial.
+En un proyecto actualizado, ejecuta `sql/migracion_kardex_por_lote.sql` y
+luego la versión actual de `sql/respaldo_completo.sql` antes de publicar el
+formulario actualizado de Kardex. Genera un respaldo con el esquema nuevo
+después de migrar.
+
+Usa **Fecha de inicio**, **Fecha final** y **Producto o acta de origen** para
+filtrar el selector y la lista. Basta con que un acta de origen coincida con
+el filtro. Ambos extremos del rango son inclusivos. **Mostrar todos** limpia
+los filtros. El detalle y el Excel conservan el historial completo del lote.
 
 **Eliminar Kardex:** selecciona el Kardex y pulsa el botón. Admin y asistente
 pueden eliminarlo previa confirmación si no tiene salidas y el producto no tiene
-salidas antiguas pendientes de asignar. Se eliminan sus ingresos y únicamente
-ese producto del acta; si el acta queda vacía, se elimina su cabecera. Se conserva
+salidas antiguas pendientes de asignar. Se eliminan los ingresos del lote y sus
+detalles en las actas vinculadas. Se eliminan las actas que quedan vacías. Se conserva
 el resto de productos y Kardex, se recalcula el stock y se guarda en auditoría
 una copia de los movimientos y detalles eliminados. La operación es transaccional.
 
-En Kardex, selecciona el **acta y producto** y pulsa **Registrar Salida**.
-La salida queda fijada a ese Kardex. Completa fecha, cliente, documento, lote y
-cantidad. El vencimiento se toma del lote seleccionado. Cada acta mantiene su
-propio saldo incluso si otra tiene el mismo producto, lote y vencimiento.
-El stock del catálogo es la suma total, mientras que la cabecera y el Excel del
-Kardex muestran únicamente el saldo del acta elegida.
+En Kardex, selecciona el **producto y lote** y pulsa **Registrar Salida**.
+Completa fecha, cliente, documento y cantidad entera positiva. El saldo del
+lote se actualiza con cada ingreso o salida. El stock del catálogo suma los
+saldos de todos los lotes del producto y el Excel muestra el saldo del lote
+seleccionado junto con las guías de cada ingreso.
 Si el documento es una guía, su número también llena
 la columna Guía R. del Excel. Para una factura puedes indicar la guía aparte.
 
@@ -127,8 +135,8 @@ Una salida antigua que consumió varias actas necesita conciliación antes de
 asignarla: no se divide ni se inventa su origen automáticamente.
 
 Las salidas pueden editarse o eliminarse en su Kardex y recalculan su saldo.
-Un acta con salidas vinculadas no se puede reconstruir ni eliminar, para evitar
-borrar el historial de despachos. Las actas sin salidas conservan su edición.
+Las actas que alimentan un Kardex con salidas conservan sus ingresos para
+proteger el historial de despachos.
 
 El servidor valida el stock disponible y guarda movimiento, nuevo stock y
 auditoría en una transacción. Se conserva el historial y se actualiza la pantalla

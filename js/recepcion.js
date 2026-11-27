@@ -4,7 +4,7 @@ let ACTAS_CACHE = [];
 document.addEventListener('DOMContentLoaded', async () => {
     if (!await window.perfilSGDEListo) return;
     const sesion = JSON.parse(localStorage.getItem('sesion_usuario') || 'null');
-    document.getElementById('rc-fecha').value = new Date().toISOString().slice(0, 10);
+    document.getElementById('rc-fecha').value = fechaActualLima();
     document.getElementById('rc-recibido-por').value = sesion?.nombre || '';
     await cargarProductos();
     agregarFilaProducto();
@@ -14,8 +14,43 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.querySelector('#tabla-detalle-editor tbody').addEventListener('click', manejarClickDetalle);
     document.querySelector('#tabla-recepciones tbody').addEventListener('click', manejarAccionActa);
     document.getElementById('form-recepcion').addEventListener('submit', guardarActa);
+    document.getElementById('form-buscar-actas').addEventListener('submit', e => {
+        e.preventDefault();
+        cargarRecepciones();
+    });
     document.getElementById('btn-cancelar-edicion-acta').addEventListener('click', reiniciarFormularioActa);
 });
+
+function fechaActualLima() {
+    const partes = new Intl.DateTimeFormat('en', {
+        timeZone: 'America/Lima', year: 'numeric', month: '2-digit', day: '2-digit'
+    }).formatToParts(new Date());
+    const valor = tipo => partes.find(parte => parte.type === tipo).value;
+    return `${valor('year')}-${valor('month')}-${valor('day')}`;
+}
+
+function mostrarAlertaActa(mensaje = '') {
+    const alerta = document.getElementById('rc-alerta');
+    alerta.textContent = mensaje;
+    alerta.classList.toggle('d-none', !mensaje);
+}
+
+function validarHorarioActa(cabecera) {
+    const { fecha, entrega_inicio, entrega_termino, recepcion_inicio, recepcion_termino } = cabecera;
+    if (new Date(`${fecha}T00:00:00Z`).getUTCDay() === 0) {
+        return 'Fecha no permitida. Registra el acta de lunes a sábado.';
+    }
+    if ([recepcion_inicio, recepcion_termino].some(valor => valor.slice(0, 10) !== fecha)) {
+        return 'La fecha del acta, el inicio y el término de recepción deben coincidir.';
+    }
+    if ([recepcion_inicio, recepcion_termino].some(valor => valor.slice(11) < '08:00' || valor.slice(11) > '13:00')) {
+        return 'El inicio y el término de recepción deben estar entre las 08:00 a. m. y la 1:00 p. m.';
+    }
+    if (recepcion_termino < recepcion_inicio || entrega_termino < entrega_inicio) {
+        return 'Revisa las fechas y horas. El término de entrega o recepción no puede ser anterior a su inicio.';
+    }
+    return '';
+}
 
 function escapar(texto) {
     return String(texto ?? '').replace(/[&<>'"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;' })[c]);
@@ -45,10 +80,10 @@ function agregarFilaProducto() {
         <td><span class="dato-producto dato-nombre"></span></td><td><span class="dato-producto dato-presentacion"></span></td>
         <td><span class="dato-producto dato-concentracion"></span></td><td><span class="dato-producto dato-fabricante"></span></td>
         <td><span class="dato-producto dato-procedencia"></span></td>
-        <td><input type="text" class="form-control form-control-sm campo-manual lote"></td>
-        <td><input type="date" class="form-control form-control-sm campo-manual fecha-venc"></td>
+        <td><input type="text" class="form-control form-control-sm campo-manual lote" required></td>
+        <td><input type="date" class="form-control form-control-sm campo-manual fecha-venc" required></td>
         <td><span class="dato-producto dato-registro"></span></td><td><span class="dato-producto dato-condicion"></span></td>
-        <td><select class="form-control form-control-sm campo-manual estado"><option>CONFORME</option><option>NO CONFORME</option></select></td>
+        <td><select class="form-control form-control-sm campo-manual estado" required><option>CONFORME</option><option>NO CONFORME</option></select></td>
         <td><button type="button" class="btn btn-outline-danger btn-sm quitar-fila" title="Quitar"><i class="fas fa-times"></i></button></td>`;
     document.querySelector('#tabla-detalle-editor tbody').appendChild(tr);
     actualizarContadorProductos();
@@ -95,12 +130,19 @@ async function guardarActa(e) {
     e.preventDefault();
     const form = e.currentTarget;
     const btn = form.querySelector('button[type="submit"]');
+    mostrarAlertaActa();
+    if (!form.checkValidity()) {
+        mostrarAlertaActa('Acta incompleta o con campos inválidos. Completa los campos obligatorios y corrige los valores marcados.');
+        document.getElementById('datos-recepcion-complementarios').classList.add('show');
+        form.reportValidity();
+        return;
+    }
     const detalles = leerDetalles();
     const actaId = document.getElementById('rc-id').value;
-    if (!detalles.length || detalles.some(d => !d.producto_id ||
+    if (!detalles.length || detalles.some(d => !d.producto_id || !d.lote || !d.fecha_venc || !d.estado_embalaje ||
         !Number.isSafeInteger(d.cant_solicitada) || d.cant_solicitada < 1 ||
         !Number.isSafeInteger(d.cant_recibida) || d.cant_recibida < 1)) {
-        alert('Selecciona cada producto e ingresa cantidades solicitadas y recibidas enteras mayores que cero.'); return;
+        return mostrarAlertaActa('Acta incompleta. Revisa el producto, el lote, el vencimiento, el embalaje y las cantidades enteras mayores que cero.');
     }
     const sesion = JSON.parse(localStorage.getItem('sesion_usuario') || 'null');
     const cabecera = {
@@ -113,6 +155,15 @@ async function guardarActa(e) {
         recepcion_inicio: document.getElementById('rc-recepcion-inicio').value || null,
         recepcion_termino: document.getElementById('rc-recepcion-termino').value || null
     };
+    if (![cabecera.guia_numero, cabecera.proveedor, cabecera.transportista_nombre, cabecera.recibido_por].every(Boolean)) {
+        return mostrarAlertaActa('Acta incompleta. Ingresa la guía o factura, el proveedor, el transportista y quién recibió los productos.');
+    }
+    const errorHorario = validarHorarioActa(cabecera);
+    if (errorHorario) return mostrarAlertaActa(errorHorario);
+    // El acta conserva las horas de calendario escritas, almacenadas con sufijo UTC.
+    for (const campo of ['entrega_inicio', 'entrega_termino', 'recepcion_inicio', 'recepcion_termino']) {
+        cabecera[campo] += 'Z';
+    }
     btn.disabled = true;
     try {
         const { data: recepcionId, error } = actaId
@@ -135,7 +186,8 @@ function reiniciarFormularioActa() {
     const form = document.getElementById('form-recepcion');
     form.reset();
     document.getElementById('rc-id').value = '';
-    document.getElementById('rc-fecha').value = new Date().toISOString().slice(0, 10);
+    document.getElementById('rc-fecha').value = fechaActualLima();
+    mostrarAlertaActa();
     document.getElementById('rc-recibido-por').value = JSON.parse(localStorage.getItem('sesion_usuario') || 'null')?.nombre || '';
     document.querySelector('#tabla-detalle-editor tbody').innerHTML = '';
     agregarFilaProducto();
@@ -144,18 +196,23 @@ function reiniciarFormularioActa() {
 }
 
 async function cargarRecepciones() {
-    const { data, error } = await supabaseClient.from('recepciones')
-        .select('id,fecha,guia_numero,proveedor,tipo_ingreso,usuario_registro,recepcion_detalle(id)')
-        .order('created_at', { ascending:false }).limit(15);
+    const guia = document.getElementById('buscar-acta-guia').value.trim();
+    const fecha = document.getElementById('buscar-acta-fecha').value;
+    let consulta = supabaseClient.from('recepciones')
+        .select('id,fecha,guia_numero,proveedor,tipo_ingreso,usuario_registro,recepcion_detalle(id)');
+    if (guia) consulta = consulta.ilike('guia_numero', guia.replace(/[\\%_*]/g, '\\$&'));
+    if (fecha) consulta = consulta.eq('fecha', fecha);
+    const { data, error } = await consulta.order('created_at', { ascending:false }).limit(guia || fecha ? 100 : 15);
     if (error) return manejarErrorSupabase(error);
     ACTAS_CACHE = data || [];
-    document.querySelector('#tabla-recepciones tbody').innerHTML = ACTAS_CACHE.map(r => `<tr>
+    document.querySelector('#tabla-recepciones tbody').innerHTML = ACTAS_CACHE.length ? ACTAS_CACHE.map(r => `<tr>
         <td>${escapar(r.fecha)}</td><td>${escapar(r.guia_numero)}</td><td>${escapar(r.proveedor)}</td><td>${escapar(r.tipo_ingreso)}</td>
         <td>${r.recepcion_detalle?.length || 0}</td><td>${escapar(r.usuario_registro)}</td><td class="text-nowrap">
         <button class="btn btn-info btn-sm ver-acta" data-id="${r.id}"><i class="fas fa-eye"></i> Ver</button>
         <button class="btn btn-success btn-sm descargar-acta" data-id="${r.id}"><i class="fas fa-file-excel"></i> Excel</button>
         <button class="btn btn-outline-primary btn-sm editar-acta solo-escritura" data-id="${r.id}"><i class="fas fa-pen"></i> Editar</button>
-        <button class="btn btn-outline-danger btn-sm eliminar-acta solo-escritura" data-id="${r.id}"><i class="fas fa-trash"></i> Eliminar</button></td></tr>`).join('');
+        <button class="btn btn-outline-danger btn-sm eliminar-acta solo-escritura" data-id="${r.id}"><i class="fas fa-trash"></i> Eliminar</button></td></tr>`).join('') :
+        '<tr><td colspan="7">No se encontraron actas.</td></tr>';
     if (JSON.parse(localStorage.getItem('sesion_usuario') || 'null')?.rol === 'auxiliar') {
         document.querySelectorAll('#tabla-recepciones .solo-escritura').forEach(boton => boton.style.display = 'none');
     }

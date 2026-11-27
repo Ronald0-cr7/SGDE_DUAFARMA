@@ -111,12 +111,18 @@
 
     async function exportarKardexPlantilla(producto,movimientos) {
         if(!producto) throw new Error('No se encontró el producto seleccionado.');
-        if(producto.recepcion_id && movimientos.some(m=>m.recepcion_id!==producto.recepcion_id || m.producto_id!==producto.producto_id)) throw new Error('El archivo contiene movimientos de otro Kardex.');
+        if (movimientos.some(m => producto.actas
+            ? m.kardex_lote_id !== producto.id || m.producto_id !== producto.producto_id
+            : producto.recepcion_id && (m.recepcion_id !== producto.recepcion_id || m.producto_id !== producto.producto_id))) {
+            throw new Error('El archivo contiene movimientos de otro Kardex.');
+        }
         const wb=new ExcelJS.Workbook();wb.creator='SGDE DUA FARMA';const ws=wb.addWorksheet('KARDEX',{pageSetup:pagina()});
         ws.views=[{showGridLines:false,state:'frozen',ySplit:10}];ws.columns=[11,23,11,11,11,40,21,17,11,11,11,11,11,16].map(width=>({width}));
         unir(ws,'A1:N1','FORMATO',{bold:true,size:9,fill:C.barra});ws.mergeCells('A2:E3');rango(ws,'A2:E3',{border:false});await logo(wb,ws,'A2:B3');
         unir(ws,'F2:M3','CONTROL DE EXISTENCIAS DE PRODUCTOS_DUA FARMA S.A.C.',{bold:true,size:14});
-        if(producto.recepcion_id) unir(ws,'A4:N4',`ACTA: ${producto.acta_guia || 'Sin guía'} | FECHA: ${fecha(producto.acta_fecha)} | ID: ${producto.recepcion_id}`,{align:'left',size:8,border:false});
+        if (producto.actas) {
+            unir(ws,'A4:N4',`LOTE: ${producto.lote || 'Sin lote'} | VENCIMIENTO: ${fecha(producto.fecha_venc)} | ACTAS DE ORIGEN: ${producto.actas.length}`,{align:'left',size:8,border:false});
+        } else if(producto.recepcion_id) unir(ws,'A4:N4',`ACTA: ${producto.acta_guia || 'Sin guía'} | FECHA: ${fecha(producto.acta_fecha)} | ID: ${producto.recepcion_id}`,{align:'left',size:8,border:false});
         ws.getCell('N2').value='ÁREA: ALMACÉN';ws.getCell('N3').value='PÁGINA: 1 DE 1';celda(ws.getCell('N2'),{align:'left'});celda(ws.getCell('N3'),{align:'left'});ws.getRow(2).height=27;ws.getRow(3).height=27;
         unir(ws,'A5:E5','NOMBRE DEL PRODUCTO',{bold:true,align:'left',size:10,fill:C.azul});unir(ws,'F5:N5',producto.nombre||'',{bold:true,align:'left',size:10});ws.getRow(5).height=38;
         unir(ws,'A6:E6','CÓDIGO',{bold:true,align:'left',size:10,fill:C.azul});unir(ws,'F6:F6',producto.codigo||'',{bold:true,align:'left',size:9});
@@ -134,11 +140,13 @@
             ws.pageSetup.printTitlesRow = '1:10';
             ws.getCell('N3').value = 'PÁGINA: ver pie';
         }
-        for(let i=0;i<total;i++){const f=11+i,m=movimientos[i];if(m)ws.getRow(f).values=[Number(m.salida)>0 && m.tipo_doc && m.tipo_doc!=='Guía de remisión'?'':fecha(m.fecha),Number(m.salida)>0 && m.tipo_doc && m.tipo_doc!=='Guía de remisión'?'':m.guia_numero||m.num_doc||'',m.tipo_doc==='Guía de remisión'?'':m.tipo_doc||'',m.tipo_doc==='Guía de remisión'?'':m.num_doc||'',m.tipo_doc==='Guía de remisión'?'':fecha(m.fecha_doc),m.proveedor_cliente||'',m.lote||'',fecha(m.fecha_venc),Number(m.ingreso||0),Number(m.salida||0),Number(m.saldo||0),Number(m.salida)>0?'Sameer Hasnain':m.realizado_por||'',Number(m.salida)>0?'Taylor Lujan':m.verificado_por||'',m.observaciones||''];ws.getRow(f).height=m?34:18;rango(ws,`A${f}:N${f}`,{size:7,fill:m && Number(m.ingreso)>0?C.verde:C.blanco});}
+        for(let i=0;i<total;i++){const f=11+i,m=movimientos[i];if(m)ws.getRow(f).values=[Number(m.salida)>0 && m.tipo_doc && m.tipo_doc!=='Guía de remisión'?'':fecha(m.fecha),Number(m.salida)>0 && m.tipo_doc && m.tipo_doc!=='Guía de remisión'?'':m.guia_numero||m.num_doc||'',m.tipo_doc==='Guía de remisión'?'':m.tipo_doc||'',m.tipo_doc==='Guía de remisión'?'':m.num_doc||'',m.tipo_doc==='Guía de remisión'?'':fecha(m.fecha_doc),m.proveedor_cliente||'',m.lote||'',fecha(m.fecha_venc),Number(m.ingreso||0),Number(m.salida||0),Number(m.saldo||0),m.realizado_por||'',m.verificado_por||'',m.observaciones||''];ws.getRow(f).height=m?34:18;rango(ws,`A${f}:N${f}`,{size:7,fill:m && Number(m.ingreso)>0?C.verde:C.blanco});}
         for (let i = 0; i < movimientos.length; i++) formatoCantidades(ws.getRow(11 + i), [9, 10, 11]);
         const fs=11+movimientos.length;unir(ws,`F${fs}:F${fs}`,`STOCK: ${movimientos.length?movimientos[movimientos.length-1].saldo:(producto.stock||0)}`,{bold:true,size:10});
         const fp=11+total+2;unir(ws,`A${fp}:N${fp}`,'FOR-ALM-011 / VERSIÓN 001',{bold:true,align:'left',border:false});ws.pageSetup.printArea=`A1:N${fp}`;ws.headerFooter.oddFooter='&LDUA FARMA S.A.C.&CKardex de producto&R&P de &N';
-        await descargar(wb,`Kardex_${seguro(producto.codigo)}_${producto.recepcion_id ? seguro(producto.acta_guia || 'Acta')+'_'+producto.recepcion_id+'_' : ''}${hoyPeru()}.xlsx`);
+        const identificador = producto.actas ? `${seguro(producto.lote || 'Sin lote')}_${producto.id.slice(0,12)}_`
+            : producto.recepcion_id ? `${seguro(producto.acta_guia || 'Acta')}_${producto.recepcion_id}_` : '';
+        await descargar(wb,`Kardex_${seguro(producto.codigo)}_${identificador}${hoyPeru()}.xlsx`);
     }
     window.SGDEExcel={exportarActaExcel,exportarKardexPlantilla};
 })();

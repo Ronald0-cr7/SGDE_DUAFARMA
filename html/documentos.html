@@ -94,12 +94,16 @@
                     <option>MOF</option><option>POE</option><option>Formato</option><option>Proveedor</option>
                 </select>
             </div>
+            <div class="col-md-2 mb-3">
+                <label for="dc-codigo">Código del documento</label>
+                <input type="text" class="form-control" id="dc-codigo" maxlength="80" required>
+            </div>
             <div class="col-md-3 mb-3">
-                <label>Nombre del documento</label>
+                <label for="dc-nombre">Nombre del documento</label>
                 <input type="text" class="form-control" id="dc-nombre" required>
             </div>
             <div class="col-md-2 mb-3">
-                <label>Versión</label>
+                <label for="dc-version">Versión</label>
                 <input type="text" class="form-control" id="dc-version" placeholder="v1.0" required>
             </div>
             <div class="col-md-2 mb-3">
@@ -109,6 +113,7 @@
             <div class="col-md-3 mb-3">
                 <label>Archivo (PDF, Word o Excel)</label>
                 <input type="file" class="form-control" id="dc-archivo" accept=".pdf,.doc,.docx,.xls,.xlsx" required>
+                <small class="text-muted">Al descargar un Word (.docx), el código aparece en el encabezado.</small>
             </div>
             <div class="col-12">
                 <button type="submit" class="btn btn-primary" id="btn-subir-doc"><i class="fas fa-upload"></i> Subir versión</button>
@@ -122,10 +127,17 @@
 </div>
 
 <div class="card shadow mb-4">
-    <div class="card-header py-3"><h6 class="m-0 font-weight-bold text-primary">Documentos vigentes</h6></div>
+    <div class="card-header py-3"><h6 class="m-0 font-weight-bold text-primary">Documentos registrados</h6></div>
     <div class="card-body table-responsive">
+        <form id="form-filtrar-documentos" class="form-row align-items-end">
+            <div class="form-group col-md-4"><label for="dc-buscar">Código, nombre o categoría</label><input type="search" class="form-control" id="dc-buscar"></div>
+            <div class="form-group col-md-2"><label for="dc-desde">Fecha de inicio</label><input type="date" class="form-control" id="dc-desde"></div>
+            <div class="form-group col-md-2"><label for="dc-hasta">Fecha final</label><input type="date" class="form-control" id="dc-hasta"></div>
+            <div class="form-group col-md-4"><button type="submit" class="btn btn-primary">Filtrar</button> <button type="reset" class="btn btn-outline-secondary">Mostrar todos</button></div>
+        </form>
+        <p class="text-muted" id="dc-filtro-estado" role="status">El rango se aplica a la fecha de registro.</p>
         <table class="table table-bordered" id="tabla-documentos">
-            <thead><tr><th>Categoría</th><th>Nombre</th><th>Versión</th><th>Vigente hasta</th><th>Estado</th><th>Archivo</th><th class="solo-escritura">Acciones</th></tr></thead>
+            <thead><tr><th>Código</th><th>Categoría</th><th>Nombre</th><th>Versión</th><th>Fecha de registro</th><th>Vigente hasta</th><th>Estado</th><th>Archivo</th><th class="solo-escritura">Acciones</th></tr></thead>
             <tbody></tbody>
         </table>
     </div>
@@ -146,6 +158,10 @@
         <div class="modal-body">
           <input type="hidden" id="ed-id">
           <input type="hidden" id="ed-archivo-path-actual">
+          <div class="form-group">
+            <label for="ed-codigo">Código del documento</label>
+            <input type="text" class="form-control" id="ed-codigo" maxlength="80">
+          </div>
           <div class="form-group">
             <label>Categoría</label>
             <select class="form-control" id="ed-categoria">
@@ -194,6 +210,8 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="../js/supabaseClient.js"></script>
 <script src="../js/rol_guard.js"></script>
-<script src="../js/documentos.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<script src="../js/documentoWord.js"></script>
+<script src="../js/documentos.js?v=codigo"></script>
 </body>
 </html>

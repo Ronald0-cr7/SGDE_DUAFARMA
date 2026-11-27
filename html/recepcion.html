@@ -87,12 +87,12 @@
 <div class="card shadow mb-4 solo-escritura">
     <div class="card-header py-3"><h6 class="m-0 font-weight-bold text-primary">Registrar recepción</h6></div>
     <div class="card-body">
-        <form id="form-recepcion"><input type="hidden" id="rc-id">
+        <form id="form-recepcion" novalidate><input type="hidden" id="rc-id">
           <div class="row">
             <div class="col-md-3 mb-3"><label>N° Guía / Factura</label><input type="text" class="form-control" id="rc-guia" required></div>
             <div class="col-md-3 mb-3"><label>Proveedor</label><input type="text" class="form-control" id="rc-proveedor" required></div>
             <div class="col-md-3 mb-3"><label>Fecha de recepción</label><input type="date" class="form-control" id="rc-fecha" required></div>
-            <div class="col-md-3 mb-3"><label>Tipo de ingreso</label><select class="form-control" id="rc-tipo"><option>COMPRA LOCAL</option><option>IMPORTACIÓN</option><option>OTROS</option></select></div>
+            <div class="col-md-3 mb-3"><label>Tipo de ingreso</label><select class="form-control" id="rc-tipo" required><option>COMPRA LOCAL</option><option>IMPORTACIÓN</option><option>OTROS</option></select></div>
           </div>
 
           <div class="d-flex justify-content-between align-items-center mt-2 mb-2">
@@ -107,16 +107,17 @@
           </div>
 
           <button class="btn btn-link btn-sm px-0 mb-2" type="button" data-toggle="collapse" data-target="#datos-recepcion-complementarios"><i class="fas fa-chevron-down"></i> Datos de entrega, recepción y firmas</button>
-          <div class="collapse" id="datos-recepcion-complementarios">
+          <div class="collapse show" id="datos-recepcion-complementarios">
             <div class="row">
-              <div class="col-md-4 mb-3"><label>Transportista</label><input type="text" class="form-control" id="rc-transportista"></div>
-              <div class="col-md-4 mb-3"><label>Inicio de entrega</label><input type="datetime-local" class="form-control" id="rc-entrega-inicio"></div>
-              <div class="col-md-4 mb-3"><label>Término de entrega</label><input type="datetime-local" class="form-control" id="rc-entrega-termino"></div>
-              <div class="col-md-4 mb-3"><label>Recibido por (Almacén)</label><input type="text" class="form-control" id="rc-recibido-por"></div>
-              <div class="col-md-4 mb-3"><label>Inicio de recepción</label><input type="datetime-local" class="form-control" id="rc-recepcion-inicio"></div>
-              <div class="col-md-4 mb-3"><label>Término de recepción</label><input type="datetime-local" class="form-control" id="rc-recepcion-termino"></div>
+              <div class="col-md-4 mb-3"><label for="rc-transportista">Transportista</label><input type="text" class="form-control" id="rc-transportista" required></div>
+              <div class="col-md-4 mb-3"><label for="rc-entrega-inicio">Inicio de entrega</label><input type="datetime-local" class="form-control" id="rc-entrega-inicio" required></div>
+              <div class="col-md-4 mb-3"><label for="rc-entrega-termino">Término de entrega</label><input type="datetime-local" class="form-control" id="rc-entrega-termino" required></div>
+              <div class="col-md-4 mb-3"><label for="rc-recibido-por">Recibido por (Almacén)</label><input type="text" class="form-control" id="rc-recibido-por" required></div>
+              <div class="col-md-4 mb-3"><label for="rc-recepcion-inicio">Inicio de recepción</label><input type="datetime-local" class="form-control" id="rc-recepcion-inicio" required></div>
+              <div class="col-md-4 mb-3"><label for="rc-recepcion-termino">Término de recepción</label><input type="datetime-local" class="form-control" id="rc-recepcion-termino" required></div>
             </div>
           </div>
+          <div id="rc-alerta" class="alert alert-warning d-none" role="alert"></div>
           <button type="submit" class="btn btn-primary" id="btn-guardar-acta"><i class="fas fa-save"></i> Registrar acta y generar Kardex</button>
           <button type="button" class="btn btn-secondary ml-2 d-none" id="btn-cancelar-edicion-acta">Cancelar edición</button>
         </form>
@@ -126,6 +127,13 @@
 <div class="card shadow mb-4">
     <div class="card-header py-3"><h6 class="m-0 font-weight-bold text-primary">Actas registradas recientemente</h6></div>
     <div class="card-body table-responsive">
+        <form id="form-buscar-actas" class="form-inline mb-3">
+            <label for="buscar-acta-guia" class="mr-2">N° Guía / Factura</label>
+            <input type="search" id="buscar-acta-guia" class="form-control mr-3">
+            <label for="buscar-acta-fecha" class="mr-2">Fecha de recepción</label>
+            <input type="date" id="buscar-acta-fecha" class="form-control mr-3">
+            <button type="submit" class="btn btn-primary">Buscar</button>
+        </form>
         <table class="table table-bordered" id="tabla-recepciones">
             <thead><tr><th>Fecha</th><th>Guía</th><th>Proveedor</th><th>Tipo</th><th>Productos</th><th>Registrado por</th><th>Acciones</th></tr></thead>
             <tbody></tbody>
@@ -153,6 +161,6 @@
 <script src="../js/supabaseClient.js"></script>
 <script src="../js/rol_guard.js"></script>
 <script src="../js/exportacionExcel.js"></script>
-<script src="../js/recepcion.js"></script>
+<script src="../js/recepcion.js?v=validar-acta"></script>
 </body>
 </html>

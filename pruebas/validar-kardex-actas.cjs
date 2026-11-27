@@ -16,7 +16,7 @@ const ExcelJS=require('../.test-tools/node_modules/exceljs');
     const detalle=cantidad=>[{producto_id:p.id,lote:'LOTE-COMPARTIDO',fecha_venc:'2028-05-31',cant_recibida:cantidad,cant_solicitada:cantidad}];
     const acta=async(guia,cantidad)=>(await db.query('select registrar_recepcion_completa($1,$2) as id',[JSON.stringify(cabecera(guia)),JSON.stringify(detalle(cantidad))])).rows[0].id;
     const a=await acta('ACTA-A',200),b=await acta('ACTA-B',300);
-    const registro=(id,cantidad)=>({recepcion_id:id,producto_id:p.id,fecha:'2026-09-27',proveedor_cliente:'Cliente',tipo_doc:'Factura',num_doc:'F001',guia_numero:'T001',lote:'LOTE-COMPARTIDO',fecha_venc:'2028-05-31',salida:cantidad});
+    const registro=(id,cantidad)=>({recepcion_id:id,producto_id:p.id,fecha:'2026-09-27',proveedor_cliente:'Cliente',tipo_doc:'Factura',num_doc:'F001',guia_numero:'T001',lote:'LOTE-COMPARTIDO',fecha_venc:'2028-05-31',salida:cantidad,realizado_por:'Operador',verificado_por:'Supervisor'});
     const salida=async(r,id=randomUUID())=>(await db.query('select registrar_salida_kardex($1,$2,$3) as r',[id,'admin',JSON.stringify(r)])).rows[0].r;
     const pendiente=randomUUID();
     await salida(registro(null,50),pendiente); // Salida de la versión anterior sin acta.
@@ -40,6 +40,7 @@ const ExcelJS=require('../.test-tools/node_modules/exceljs');
     await assert.rejects(salida(registro(null,10)),/Completa/);
     await assert.rejects(salida(registro(a,0)),/mayor que cero/);
     await assert.rejects(salida(registro(a,-1)),/mayor que cero/);
+    await assert.rejects(salida({...registro(a,1),verificado_por:' '}),/Completa Realizado por y Verificado por/);
     await assert.rejects(salida(registro(a,1.5)),/unidades enteras/);
     await assert.rejects(db.query('select registrar_salida_kardex($1,$2,$3)',[randomUUID(),'auxiliar',JSON.stringify(registro(a,1))]),/permiso/);
     await assert.rejects(salida(registro(a,151)),/Stock insuficiente.*150/);
@@ -74,6 +75,17 @@ const ExcelJS=require('../.test-tools/node_modules/exceljs');
     assert.equal(await saldo(a),50);assert.equal(await total(),350);
     console.log('OK SQL: actas A/B con mismo producto, lote y vencimiento; saldos aislados; stock total; migración, asignación, reintento, edición y eliminación.');
 
+    await db.exec('create role anon; create role authenticated; create role service_role');
+    await db.query("update productos set fabricante='Fabricante', procedencia='Perú', reg_sanitario='RS-A' where id=$1",[p.id]);
+    await db.query(`update recepcion_detalle set producto_snapshot=producto_snapshot ||
+        jsonb_build_object('fabricante','Fabricante','procedencia','Perú','reg_sanitario',
+        case when recepcion_id=$1 then 'RS-A' else 'RS-B' end) where producto_id=$2`,[a,p.id]);
+    await db.exec(sql('migracion_kardex_por_lote.sql'));
+    await db.exec(sql('migracion_kardex_por_lote.sql'));
+    const claveLote=async acta=>(await db.query('select kardex_lote_id from kardex_movimientos where recepcion_id=$1 and producto_id=$2 and ingreso>0',[acta,p.id])).rows[0].kardex_lote_id;
+    const loteA=await claveLote(a), loteB=await claveLote(b);
+    assert.notEqual(loteA,loteB);
+
     const normalize=row=>Object.fromEntries(Object.entries(row).map(([k,v])=>[k,v instanceof Date?(k.includes('fecha')?v.toISOString().slice(0,10):v.toISOString()):v]));
     const dom=new JSDOM(fs.readFileSync('html/kardex.html','utf8'),{url:'http://localhost/html/kardex.html',runScripts:'outside-only'});
     const w=dom.window;await new Promise(r=>w.addEventListener('load',r));
@@ -82,16 +94,16 @@ const ExcelJS=require('../.test-tools/node_modules/exceljs');
     w.alert=m=>{throw new Error(m);};w.manejarErrorSupabase=e=>{throw e;};
     w.supabaseClient={
         from(tabla){
-            assert.ok(['kardex_por_acta','kardex_movimientos'].includes(tabla));
+            assert.ok(['kardex_por_lote','kardex_movimientos'].includes(tabla));
             let filtros=[],params=[],limite='';
-            const q={select(){return q;},order(){return q;},eq(k,v){assert.ok(['id','producto_id','recepcion_id'].includes(k));params.push(v);filtros.push(`${k}=$${params.length}`);return q;},is(k,v){assert.equal(k,'recepcion_id');assert.equal(v,null);filtros.push('recepcion_id is null');return q;},gt(k,v){assert.equal(k,'salida');params.push(v);filtros.push(`salida>$${params.length}`);return q;},range(a,b){limite=` limit ${b-a+1} offset ${a}`;return q;},then(ok,fail){return db.query(`select * from ${tabla}${filtros.length?' where '+filtros.join(' and '):''} order by ${tabla==='kardex_por_acta'?'id':'created_at,id'}${limite}`,params).then(r=>({data:r.rows.map(normalize)})).then(ok,fail);}};
+            const q={select(){return q;},order(){return q;},eq(k,v){assert.ok(['id','producto_id','recepcion_id','kardex_lote_id'].includes(k));params.push(v);filtros.push(`${k}=$${params.length}`);return q;},is(k,v){assert.equal(k,'recepcion_id');assert.equal(v,null);filtros.push('recepcion_id is null');return q;},gt(k,v){assert.equal(k,'salida');params.push(v);filtros.push(`salida>$${params.length}`);return q;},range(a,b){limite=` limit ${b-a+1} offset ${a}`;return q;},then(ok,fail){return db.query(`select * from ${tabla}${filtros.length?' where '+filtros.join(' and '):''} order by ${tabla==='kardex_por_lote'?'id':'created_at,id'}${limite}`,params).then(r=>({data:r.rows.map(normalize)})).then(ok,fail);}};
             return q;
         },
         async rpc(nombre,args){try{
-            if(nombre==='consultar_lotes_kardex')return {data:(await db.query('select * from consultar_lotes_kardex($1,$2)',[args.p_producto_id,args.p_recepcion_id])).rows.map(normalize)};
+            if(nombre==='consultar_lote_kardex')return {data:(await db.query('select * from consultar_lote_kardex($1)',[args.p_kardex_id])).rows.map(normalize)};
             if(nombre==='registrar_salida_kardex')return {data:await salida(args.p_registro,args.p_id)};
-            if(nombre==='eliminar_kardex_acta') {
-                await db.query('select eliminar_kardex_acta($1,$2,$3)',[args.p_recepcion_id,args.p_producto_id,args.p_usuario]);
+            if(nombre==='eliminar_kardex_lote') {
+                await db.query('select eliminar_kardex_lote($1,$2)',[args.p_kardex_id,args.p_usuario]);
                 return {data:null};
             }
             throw new Error('RPC inesperada');
@@ -101,23 +113,23 @@ const ExcelJS=require('../.test-tools/node_modules/exceljs');
     w.eval(fs.readFileSync('js/kardex.js','utf8'));w.document.dispatchEvent(new w.Event('DOMContentLoaded'));
     for(let i=0;i<100&&!w.document.querySelector('#tabla-lista-kardex tbody tr');i++)await new Promise(r=>setTimeout(r,10));
     assert.equal(w.document.querySelectorAll('#kx-producto option').length,2);
-    w.document.getElementById('kx-producto').value=`${a}:${p.id}`;await w.cargarKardex();await w.abrirSalidaKardex();
+    w.document.getElementById('kx-producto').value=loteA;await w.cargarKardex();await w.abrirSalidaKardex();
     assert.equal(w.document.getElementById('ks-producto').disabled,true);
     assert.equal(w.document.querySelectorAll('#ks-producto option').length,1);
     assert.match(w.document.getElementById('ks-disponible').textContent,/50/);
-    for(const[k,v]of Object.entries({'ks-cliente':'Cliente del acta A','ks-tipo-doc':'Factura','ks-num-doc':'A-UI','ks-cantidad':'25'}))w.document.getElementById(k).value=v;
+    for(const[k,v]of Object.entries({'ks-cliente':'Cliente del acta A','ks-tipo-doc':'Factura','ks-num-doc':'A-UI','ks-cantidad':'25','ks-realizado':'Ana Soto','ks-verificado':'Luis Vega'}))w.document.getElementById(k).value=v;
     await w.guardarSalidaKardex({preventDefault(){}});
     assert.equal(await saldo(a),25);assert.equal(await saldo(b),300);
     const factura=(await db.query("select * from kardex_movimientos where num_doc='A-UI'")).rows[0];
     assert.equal(factura.guia_numero,null);
     assert.ok(factura.fecha_doc);
-    assert.equal(factura.realizado_por,'Sameer Hasnain');
-    assert.equal(factura.verificado_por,'Taylor Lujan');
+    assert.equal(factura.realizado_por,'Ana Soto');
+    assert.equal(factura.verificado_por,'Luis Vega');
     assert.equal(factura.observaciones,'CONFORME');
 
     assert.match(w.document.getElementById('kx-cabecera').textContent,/25/);
     assert.match(w.document.querySelector('#tabla-kardex tbody').textContent,/A-UI/);
-    w.document.getElementById('kx-producto').value=`${b}:${p.id}`;await w.cargarKardex();
+    w.document.getElementById('kx-producto').value=loteB;await w.cargarKardex();
     assert.equal(w.document.getElementById('kx-resultado').textContent,'');
     assert.doesNotMatch(w.document.querySelector('#tabla-kardex tbody').textContent,/A-UI/);
     assert.match(w.document.getElementById('kx-cabecera').textContent,/300/);
@@ -136,6 +148,11 @@ const ExcelJS=require('../.test-tools/node_modules/exceljs');
     await assert.rejects(w.aplicarFiltroFechas(),/posterior/);
     w.document.getElementById('kx-filtro-fechas').reset();await w.aplicarFiltroFechas();
     assert.equal(w.document.querySelectorAll('#tabla-lista-kardex tbody tr').length,2);
+    w.document.getElementById('kx-buscar').value='acta-b';await w.aplicarFiltroFechas();
+    assert.deepEqual([...w.document.getElementById('kx-producto').options].map(o=>o.value),[loteB]);
+    w.document.getElementById('kx-buscar').value=p.nombre.toLowerCase();await w.aplicarFiltroFechas();
+    assert.equal(w.document.getElementById('kx-producto').options.length,2);
+    w.document.getElementById('kx-filtro-fechas').reset();await w.aplicarFiltroFechas();
     console.log('OK filtro: fechas inclusivas, sin resultados, rango inválido y mostrar todos.');
     console.log('OK UI: un selector por acta/producto; salida fijada al Kardex; saldo propio; cambio de acta limpia aviso e historial.');
 
@@ -160,11 +177,12 @@ const ExcelJS=require('../.test-tools/node_modules/exceljs');
     assert.equal(hoja.getCell(`C${filaFactura}`).value,'Factura');
     assert.equal(hoja.getCell(`J${filaFactura}`).value,25);
     for(const col of ['I','J','K'])assert.equal(hoja.getCell(`${col}${filaFactura}`).numFmt,'0');
-    assert.equal(hoja.getCell(`L${filaFactura}`).value,'Sameer Hasnain');
-    assert.equal(hoja.getCell(`M${filaFactura}`).value,'Taylor Lujan');
+    assert.equal(hoja.getCell(`L${filaFactura}`).value,'Ana Soto');
+    assert.equal(hoja.getCell(`M${filaFactura}`).value,'Luis Vega');
     console.log('OK Excel: acta identificada, archivo único, saldo 25 y rechazo de movimientos ajenos.');
 
     const p2=(await db.query("select id from productos where codigo='D00035'")).rows[0].id;
+    await db.query("update productos set reg_sanitario='RS-MULTI' where id=$1",[p.id]);
     const multiproducto=(await db.query('select registrar_recepcion_completa($1,$2) as id',[
         JSON.stringify(cabecera('ACTA-MULTI')),JSON.stringify([...detalle(60),{...detalle(90)[0],producto_id:p2}])])).rows[0].id;
     const saldomulti=async pid=>Number((await db.query('select stock from kardex_por_acta where recepcion_id=$1 and producto_id=$2',[multiproducto,pid])).rows[0].stock);
@@ -182,25 +200,27 @@ const ExcelJS=require('../.test-tools/node_modules/exceljs');
     assert.equal(await saldomulti(p.id),50);assert.equal(await total(),stockAntes);
     assert.equal(Number((await db.query('select count(*) as n from recepcion_detalle where recepcion_id=$1 and producto_id=$2',[multiproducto,p2])).rows[0].n),0);
     assert.equal(Number((await db.query('select stock from productos where id=$1',[p2])).rows[0].stock),0);
+    await db.query("update productos set reg_sanitario='RS-BORRAR' where id=$1",[p.id]);
     const borrar=await acta('ACTA-BORRAR',30);
+    const loteBorrar=await claveLote(borrar);
     await db.exec('create trigger prueba_auditoria before insert on log_auditoria for each row execute function prueba_auditoria_falla()');
     await assert.rejects(eliminar(borrar,p.id),/Auditoria falla/);
     await db.exec('drop trigger prueba_auditoria on log_auditoria');
     assert.equal(await saldo(borrar),30);
     await w.refrescarKardex();
-    w.document.getElementById('kx-producto').value=`${borrar}:${p.id}`;
+    w.document.getElementById('kx-producto').value=loteBorrar;
     w.confirm=()=>false;await w.eliminarKardexSeleccionado();assert.equal(await saldo(borrar),30);
     w.confirm=()=>true;await w.eliminarKardexSeleccionado();
     assert.equal(Number((await db.query('select count(*) as n from recepciones where id=$1',[borrar])).rows[0].n),0);
     assert.equal(await total(),stockAntes);
     assert.match(w.document.getElementById('kx-resultado').textContent,/eliminado/);
-    assert.equal(Number((await db.query("select count(*) as n from log_auditoria where accion='DELETE' and registro_id=$1",[`${borrar}:${p.id}`])).rows[0].n),1);
+    assert.equal(Number((await db.query("select count(*) as n from log_auditoria where accion='DELETE' and registro_id=$1",[loteBorrar])).rows[0].n),1);
     assert.equal(await saldo(a),25);assert.equal(await saldo(b),300);
     console.log('OK eliminar Kardex: permisos, cancelación, protección de salidas, aislamiento por producto, acta vacía, stock y auditoría atómica.');
 
-    w.document.getElementById('kx-producto').value=`${b}:${p.id}`;
+    w.document.getElementById('kx-producto').value=loteB;
     await w.cargarKardex();await w.abrirSalidaKardex();
-    for(const[k,v]of Object.entries({'ks-cliente':'Cliente','ks-tipo-doc':'Guía de remisión','ks-num-doc':'GUIA-UI','ks-cantidad':'1','ks-observacion-opcion':'texto','ks-observaciones':'Entrega revisada'}))w.document.getElementById(k).value=v;
+    for(const[k,v]of Object.entries({'ks-cliente':'Cliente','ks-tipo-doc':'Guía de remisión','ks-num-doc':'GUIA-UI','ks-cantidad':'1','ks-realizado':'Operador','ks-verificado':'Supervisor','ks-observacion-opcion':'texto','ks-observaciones':'Entrega revisada'}))w.document.getElementById(k).value=v;
     w.actualizarDocumentoSalida();w.actualizarObservacionSalida();
     assert.equal(w.document.getElementById('ks-observaciones').disabled,false);
     await w.guardarSalidaKardex({preventDefault(){}});
@@ -213,6 +233,51 @@ const ExcelJS=require('../.test-tools/node_modules/exceljs');
     assert.ok(hg.getCell('A11').value);assert.equal(hg.getCell('B11').value,'GUIA-UI');
     for(const col of ['C','D','E'])assert.equal(hg.getCell(`${col}11`).value,'');
     console.log('OK documentos: factura y guia excluyentes en SQL/Excel, responsables y observaciones.');
+
+    await db.query("update productos set reg_sanitario='RS-A' where id=$1",[p.id]);
+    const nuevaActa=(await db.query('select registrar_recepcion_completa($1,$2) as id',[
+        JSON.stringify({...cabecera('ACTA-SEGUNDO-INGRESO'),fecha:'2026-09-29'}),
+        JSON.stringify(detalle(100))
+    ])).rows[0].id;
+    assert.equal(await claveLote(nuevaActa),loteA);
+    const grupo=async id=>(await db.query('select * from kardex_por_lote where id=$1',[id])).rows[0];
+    assert.equal(Number((await grupo(loteA)).stock),125);
+    assert.equal((await grupo(loteA)).actas.length,2);
+    const identidadBase={fabricante:'Fabricante',procedencia:'Perú',reg_sanitario:'RS-A'};
+    const identificar=async(lote,vencimiento,snapshot)=>(await db.query(
+        'select fn_clave_kardex_lote(fn_identidad_kardex_lote($1,$2,$3,$4,$5)) as clave',
+        [a,p.id,lote,vencimiento,JSON.stringify(snapshot)]
+    )).rows[0].clave;
+    assert.equal(await identificar('LOTE-COMPARTIDO','2028-05-31',identidadBase),loteA);
+    assert.notEqual(await identificar('OTRO-LOTE','2028-05-31',identidadBase),loteA);
+    assert.notEqual(await identificar('LOTE-COMPARTIDO','2028-06-01',identidadBase),loteA);
+    for(const campo of ['fabricante','procedencia','reg_sanitario']){
+        assert.notEqual(await identificar('LOTE-COMPARTIDO','2028-05-31',{...identidadBase,[campo]:'Otro'}),loteA);
+    }
+    const retiro=await salida({...registro(a,115),fecha:'2026-09-30'});
+    assert.equal(Number(retiro.saldo),10);
+    assert.equal(Number((await grupo(loteB)).stock),299);
+    await assert.rejects(salida(registro(a,11)),/Stock insuficiente.*10/);
+    await assert.rejects(db.query('select eliminar_acta_completa($1)',[nuevaActa]),/salidas registradas/);
+    const saldos=(await db.query('select sum(stock) as total from kardex_por_lote where producto_id=$1',[p.id])).rows[0];
+    assert.equal(await total(),Number(saldos.total));
+
+    await w.refrescarKardex();
+    w.document.getElementById('kx-desde').value='2026-09-29';
+    w.document.getElementById('kx-hasta').value='2026-09-29';
+    w.document.getElementById('kx-buscar').value='segundo-ingreso';
+    await w.aplicarFiltroFechas();
+    assert.deepEqual([...w.document.getElementById('kx-producto').options].map(o=>o.value),[loteA]);
+    const consolidado=await w.leerMovimientosKardex(loteA);
+    assert.ok(consolidado.some(m=>m.recepcion_id===a));
+    assert.ok(consolidado.some(m=>m.recepcion_id===nuevaActa && Number(m.saldo)===125));
+    const ficha=await grupo(loteA);
+    await w.SGDEExcel.exportarKardexPlantilla({...ficha.producto,...ficha},consolidado);
+    const libroLote=new ExcelJS.Workbook();await libroLote.xlsx.load(Buffer.from(await archivo.arrayBuffer()));
+    const hojaLote=libroLote.getWorksheet('KARDEX');
+    assert.match(hojaLote.getCell('A4').value,/ACTAS DE ORIGEN: 2/);
+    assert.equal(hojaLote.getCell(`F${11+consolidado.length}`).value,'STOCK: 10');
+    console.log('OK Kardex por lote: actas de distintas fechas, saldo consolidado, búsqueda y Excel.');
     await w.SGDEExcel.exportarActaExcel({
         ...cabecera('ACTA-EXCEL'),
         recepcion_detalle: [...Array.from({length:15},()=>detalle(25)[0]),detalle(1.5)[0]]

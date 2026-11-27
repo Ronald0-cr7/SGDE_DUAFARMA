@@ -5,12 +5,20 @@ let CARGA_LOTES = 0;
 let GUARDANDO_SALIDA = false;
 let SOLICITUD_SALIDA = null;
 let SALIDAS_PENDIENTES = [];
-let FILTRO_FECHAS = { desde:'', hasta:'' };
+let FILTRO_KARDEX = { desde:'', hasta:'', texto:'' };
 let ELIMINANDO_KARDEX = false;
 
+function normalizarBusquedaKardex(valor) {
+    return String(valor ?? '').normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().trim();
+}
+
 function kardexVisibles() {
-    return PRODUCTOS_CACHE.filter(k=>(!FILTRO_FECHAS.desde || k.acta_fecha>=FILTRO_FECHAS.desde)
-        && (!FILTRO_FECHAS.hasta || k.acta_fecha<=FILTRO_FECHAS.hasta));
+    const { desde, hasta, texto } = FILTRO_KARDEX;
+    return PRODUCTOS_CACHE.filter(k => {
+        const coincideProducto = [k.nombre, k.codigo].some(valor => normalizarBusquedaKardex(valor).includes(texto));
+        return k.actas.some(acta => (!desde || acta.fecha >= desde) && (!hasta || acta.fecha <= hasta)
+            && (coincideProducto || [acta.guia, acta.id].some(valor => normalizarBusquedaKardex(valor).includes(texto))));
+    });
 }
 
 async function aplicarFiltroFechas(e) {
@@ -18,7 +26,7 @@ async function aplicarFiltroFechas(e) {
     const desde=document.getElementById('kx-desde').value;
     const hasta=document.getElementById('kx-hasta').value;
     if(desde && hasta && desde>hasta) return alert('La fecha desde no puede ser posterior a la fecha hasta.');
-    FILTRO_FECHAS={desde,hasta};
+    FILTRO_KARDEX={desde,hasta,texto:normalizarBusquedaKardex(document.getElementById('kx-buscar').value)};
     await renderSeleccionKardex();
 }
 
@@ -29,7 +37,7 @@ async function renderSeleccionKardex() {
     selector.innerHTML=visibles.map(p=>`<option value="${p.id}">${escaparKardex(etiquetaKardex(p))}</option>`).join('');
     selector.value=visibles.some(k=>k.id===anterior)?anterior:(visibles[0]?.id||'');
     document.getElementById('kx-filtro-estado').textContent=visibles.length
-        ? `${visibles.length} Kardex encontrados por fecha del acta.` : 'No hay Kardex en este rango de fechas.';
+        ? `${visibles.length} Kardex encontrados.` : 'No hay Kardex que coincidan con los filtros.';
     renderListaKardex();
     await cargarKardex();
 }
@@ -40,12 +48,12 @@ async function eliminarKardexSeleccionado() {
     if(!sesion || !kardex || ELIMINANDO_KARDEX) return;
     if(SOLICITUD_SALIDA) return alert('Confirma primero la salida pendiente.');
     if(Number(kardex.salidas_pendientes)>0) return alert('Asigna primero las salidas anteriores de este producto.');
-    if(!confirm(`¿Eliminar el Kardex de ${kardex.nombre}, acta ${kardex.acta_guia || kardex.recepcion_id}? Se quitarán sus ingresos y ese producto del acta, y se recalculará el stock. Si el acta queda vacía también se eliminará. Los otros productos se conservan. No se permite si este Kardex tiene salidas.`)) return;
+    if(!confirm(`¿Eliminar el Kardex de ${kardex.nombre}, lote ${kardex.lote || 'sin lote'}? Se quitarán sus ingresos de las ${kardex.actas.length} actas vinculadas. Las actas vacías también se eliminarán y se recalculará el stock. Solo se permite si este Kardex no tiene salidas.`)) return;
     ELIMINANDO_KARDEX=true;
     document.getElementById('kx-eliminar').disabled=true;
     try {
-        const {error}=await supabaseClient.rpc('eliminar_kardex_acta',{
-            p_recepcion_id:kardex.recepcion_id,p_producto_id:kardex.producto_id,p_usuario:sesion.usuario
+        const {error}=await supabaseClient.rpc('eliminar_kardex_lote',{
+            p_kardex_id:kardex.id,p_usuario:sesion.usuario
         });
         if(error) throw error;
         try { await refrescarKardex(); }
@@ -54,7 +62,7 @@ async function eliminarKardexSeleccionado() {
         aviso.textContent='Kardex eliminado y stock actualizado.';
         aviso.classList.remove('d-none');
     } catch(error) {
-        manejarErrorSupabase(error,error.code==='PGRST202'?'Ejecuta sql/migracion_eliminar_kardex.sql en Supabase.':error.message);
+        manejarErrorSupabase(error,error.code==='PGRST202'?'Ejecuta sql/migracion_kardex_por_lote.sql en Supabase.':error.message);
     } finally {
         ELIMINANDO_KARDEX=false;
         document.getElementById('kx-eliminar').disabled=!document.getElementById('kx-producto').value;
@@ -62,13 +70,13 @@ async function eliminarKardexSeleccionado() {
 }
 
 function etiquetaKardex(k) {
-    return `${k.codigo} - ${k.nombre} | Acta: ${k.acta_guia || 'Sin guía'} | ${k.acta_fecha} | ${k.recepcion_id.slice(0,8)}`;
+    return `${k.codigo} - ${k.nombre} | Lote: ${k.lote || 'Sin lote'} | Vence: ${k.fecha_venc || 'Sin fecha'} | ${k.fabricante || 'Sin fabricante'} | ${k.procedencia || 'Sin procedencia'} | R.S. ${k.reg_sanitario || 'Sin registro'}`;
 }
 
 async function leerCatalogoKardex() {
     const filas = [];
     for (let desde=0;;desde+=1000) {
-        const {data,error}=await supabaseClient.from('kardex_por_acta').select('*').order('id').range(desde,desde+999);
+        const {data,error}=await supabaseClient.from('kardex_por_lote').select('*').order('id').range(desde,desde+999);
         if(error) throw error;
         filas.push(...(data || []).map(k=>({...k.producto,...k})));
         if(!data || data.length<1000) return filas;
@@ -86,9 +94,10 @@ async function cargarSalidasPendientes() {
     }
     document.getElementById('salidas-pendientes').classList.toggle('d-none',!SALIDAS_PENDIENTES.length);
     document.querySelector('#tabla-salidas-pendientes tbody').innerHTML = SALIDAS_PENDIENTES.map(m=>{
-        const actas=PRODUCTOS_CACHE.filter(k=>k.producto_id===m.producto_id);
+        const actas=PRODUCTOS_CACHE.filter(k=>k.producto_id===m.producto_id
+            && (k.lote || '') === (m.lote?.trim() || '') && k.fecha_venc===m.fecha_venc);
         return `<tr><td>${escaparKardex(actas[0]?.nombre || m.producto_id)}</td><td>${escaparKardex(m.fecha)}</td><td>${escaparKardex(m.lote)}</td><td>${escaparKardex(m.proveedor_cliente)}</td><td>${Number(m.salida)}</td>
-        <td><select class="form-control" id="asignar-${m.id}"><option value="">Selecciona el acta de origen</option>${actas.map(k=>`<option value="${k.recepcion_id}">${escaparKardex(etiquetaKardex(k))}</option>`).join('')}</select></td>
+        <td><select class="form-control" id="asignar-${m.id}"><option value="">Selecciona el acta de origen</option>${actas.flatMap(k=>k.actas.map(acta=>`<option value="${acta.id}">${escaparKardex(acta.guia || acta.id)} · ${escaparKardex(acta.fecha)} · ${escaparKardex(etiquetaKardex(k))}</option>`)).join('')}</select></td>
         <td>${sesionPuedeRegistrarSalida()?`<button type="button" class="btn btn-warning asignar-salida" data-id="${m.id}">Asignar acta</button>`:'Solo lectura'}</td></tr>`;
     }).join('');
 }
@@ -114,11 +123,11 @@ async function asignarSalidaPendiente(e) {
 // Supabase limita las respuestas: recorrer páginas conserva todo el historial en el Excel.
 async function leerMovimientosKardex(kardexId) {
     const kardex = PRODUCTOS_CACHE.find(k => k.id === kardexId);
-    if (!kardex) throw new Error('Selecciona un Kardex de acta.');
+    if (!kardex) throw new Error('Selecciona un Kardex por lote.');
     const movimientos = [];
     for (let desde = 0; ; desde += 1000) {
         const { data, error } = await supabaseClient.from('kardex_movimientos').select('*')
-            .eq('producto_id', kardex.producto_id).eq('recepcion_id', kardex.recepcion_id).order('created_at', { ascending:true })
+            .eq('kardex_lote_id', kardex.id).order('created_at', { ascending:true })
             .order('id', { ascending:true }).range(desde, desde + 999);
         if (error) throw error;
         movimientos.push(...(data || []));
@@ -130,7 +139,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!await window.perfilSGDEListo) return;
     const sel = document.getElementById('kx-producto');
     try { PRODUCTOS_CACHE = await leerCatalogoKardex(); }
-    catch (error) { manejarErrorSupabase(error, 'No se pudieron cargar los Kardex por acta. Verifica que se haya ejecutado sql/migracion_kardex_por_acta.sql.'); return; }
+    catch (error) { manejarErrorSupabase(error, 'No se pudieron cargar los Kardex por lote. Verifica que se haya ejecutado sql/migracion_kardex_por_lote.sql.'); return; }
     sel.innerHTML = PRODUCTOS_CACHE.map(p => `<option value="${p.id}">${escaparKardex(etiquetaKardex(p))}</option>`).join('');
     renderListaKardex();
     sel.addEventListener('change', cargarKardex);
@@ -158,11 +167,22 @@ function escaparKardex(texto) {
     return String(texto ?? '').replace(/[&<>'"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;' })[c]);
 }
 
+function actasKardex(kardex) {
+    return kardex.actas.map(acta => `${acta.guia || acta.id} · ${acta.fecha}`).join(', ');
+}
+
+function datosLoteKardex(kardex) {
+    return [kardex.fabricante, kardex.procedencia, kardex.reg_sanitario && `R.S. ${kardex.reg_sanitario}`]
+        .filter(Boolean).join(' · ');
+}
+
 function renderListaKardex() {
     document.querySelector('#tabla-lista-kardex tbody').innerHTML = kardexVisibles().map(producto => `<tr>
         <td><strong>${escaparKardex(producto.codigo)}</strong></td>
         <td>${escaparKardex(producto.nombre)}</td>
-        <td>${escaparKardex(producto.acta_guia || producto.recepcion_id)} · ${escaparKardex(producto.acta_fecha)}</td>
+        <td><strong>${escaparKardex(producto.lote || 'Sin lote')}</strong> · ${escaparKardex(producto.fecha_venc || 'Sin vencimiento')}<br>
+            <small>${escaparKardex(datosLoteKardex(producto))}</small></td>
+        <td>${escaparKardex(actasKardex(producto))}</td>
         <td><strong>${Number(producto.stock || 0)}</strong>${Number(producto.salidas_pendientes)>0 ? ' <span class="text-danger">Pendiente de asignación</span>' : ''}</td>
         <td><button type="button" class="btn btn-success btn-sm descargar-kardex-producto" data-id="${producto.id}">
             <i class="fas fa-file-excel"></i> Descargar Kardex
@@ -194,8 +214,11 @@ async function cargarKardex() {
     document.getElementById('kx-cabecera').innerHTML = producto ? `<div class="row">
         <div class="col-md-3"><strong>Código:</strong> ${escaparKardex(producto.codigo)}</div>
         <div class="col-md-3"><strong>Presentación:</strong> ${escaparKardex(producto.presentacion)}</div>
-        <div class="col-md-3"><strong>Acta:</strong> ${escaparKardex(producto.acta_guia || producto.recepcion_id)} · ${escaparKardex(producto.acta_fecha)}</div>
-        <div class="col-md-3"><strong>Saldo de este Kardex:</strong> <span class="font-weight-bold">${producto.stock || 0}</span></div></div>` : '';
+        <div class="col-md-3"><strong>Lote:</strong> ${escaparKardex(producto.lote)} · ${escaparKardex(producto.fecha_venc)}<br>
+            <small>${escaparKardex(datosLoteKardex(producto))}</small></div>
+        <div class="col-md-3"><strong>Saldo del lote:</strong> <span class="font-weight-bold">${producto.stock || 0}</span><br>
+            <strong>Stock total del producto:</strong> ${producto.stock_producto || 0}</div>
+        <div class="col-12 mt-2"><strong>Actas de origen:</strong> ${escaparKardex(actasKardex(producto))}</div></div>` : '';
     document.getElementById('kx-registrar-salida').disabled = !producto || Number(producto.salidas_pendientes)>0;
     document.getElementById('kx-eliminar').disabled = !producto || ELIMINANDO_KARDEX;
     KARDEX_ACTUAL = [];
@@ -264,8 +287,6 @@ async function guardarMovimientoKardex(e) {
         fecha: document.getElementById('km-fecha').value,
         guia_numero: document.getElementById('km-guia').value.trim(),
         proveedor_cliente: document.getElementById('km-proveedor').value.trim(),
-        lote: document.getElementById('km-lote').value.trim(),
-        fecha_venc: document.getElementById('km-vencimiento').value || null,
         ingreso, salida,
         observaciones: document.getElementById('km-observaciones').value.trim()
     };
@@ -328,7 +349,7 @@ async function abrirSalidaKardex() {
         return;
     }
     const seleccionado = PRODUCTOS_CACHE.find(k=>k.id===document.getElementById('kx-producto').value);
-    if (!seleccionado) return alert('Selecciona un Kardex de acta.');
+    if (!seleccionado) return alert('Selecciona un Kardex por lote.');
     if (Number(seleccionado.salidas_pendientes)>0) return alert('Asigna primero las salidas anteriores de este producto.');
     document.getElementById('form-salida').reset();
     actualizarDocumentoSalida();
@@ -356,8 +377,8 @@ async function cargarLotesSalida() {
     errorSalida();
     try {
         const kardex = PRODUCTOS_CACHE.find(k=>k.id===document.getElementById('ks-producto').value);
-        const { data, error } = await supabaseClient.rpc('consultar_lotes_kardex', {
-            p_producto_id: kardex.producto_id, p_recepcion_id: kardex.recepcion_id
+        const { data, error } = await supabaseClient.rpc('consultar_lote_kardex', {
+            p_kardex_id: kardex.id
         });
         if (carga !== CARGA_LOTES) return;
         if (error) throw error;
@@ -393,15 +414,17 @@ async function guardarSalidaKardex(e) {
         if (!Number.isSafeInteger(cantidad) || cantidad < 1) return errorSalida('La cantidad retirada debe ser un número entero mayor que cero.');
         if (cantidad > Number(lote.disponible)) return errorSalida(`Stock insuficiente. Disponible: ${Number(lote.disponible)} unidades.`);
         if (!texto('ks-cliente') || !texto('ks-tipo-doc') || !texto('ks-num-doc') || !texto('ks-fecha')) return errorSalida('Completa fecha, cliente y documento.');
+        if (!texto('ks-realizado') || !texto('ks-verificado')) return errorSalida('Completa Realizado por y Verificado por.');
         const kardex = PRODUCTOS_CACHE.find(k=>k.id===texto('ks-producto'));
-        if (!kardex) return errorSalida('Selecciona un Kardex de acta.');
+        if (!kardex) return errorSalida('Selecciona un Kardex por lote.');
         SOLICITUD_SALIDA = {
             p_id: crypto.randomUUID(), p_usuario: sesion.usuario,
             p_registro: {
-                producto_id: kardex.producto_id, recepcion_id: kardex.recepcion_id, fecha: texto('ks-fecha'),
+                producto_id: kardex.producto_id, recepcion_id: lote.recepcion_id, fecha: texto('ks-fecha'),
                 proveedor_cliente: texto('ks-cliente'), tipo_doc: texto('ks-tipo-doc'),
                 num_doc: texto('ks-num-doc'), guia_numero: texto('ks-tipo-doc') === 'Guía de remisión' ? texto('ks-num-doc') : '',
                 lote: lote.lote, fecha_venc: lote.fecha_venc, salida: cantidad,
+                realizado_por: texto('ks-realizado'), verificado_por: texto('ks-verificado'),
                 observaciones: texto('ks-observacion-opcion') === 'CONFORME' ? 'CONFORME' : texto('ks-observaciones')
             }
         };
@@ -429,7 +452,7 @@ async function guardarSalidaKardex(e) {
         GUARDANDO_SALIDA = false;
         document.getElementById('ks-guardar').disabled = false;
     }
-    const productoId = `${SOLICITUD_SALIDA.p_registro.recepcion_id}:${SOLICITUD_SALIDA.p_registro.producto_id}`;
+    const productoId = texto('ks-producto');
     SOLICITUD_SALIDA = null;
     $('#modal-salida').modal('hide');
     document.getElementById('kx-producto').value = productoId;

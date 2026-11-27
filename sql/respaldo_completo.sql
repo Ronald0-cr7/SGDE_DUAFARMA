@@ -192,8 +192,9 @@ begin
         raise exception 'La copia tiene diferencias entre stock y movimientos de Kardex';
     end if;
     if exists(select 1 from (select saldo,sum(coalesce(ingreso,0)-coalesce(salida,0)) over
-        (partition by recepcion_id,producto_id order by created_at,id rows unbounded preceding) esperado
-        from kardex_movimientos) k where k.saldo is distinct from k.esperado) then
+        (partition by producto_id, coalesce(to_jsonb(m)->>'kardex_lote_id',recepcion_id::text)
+         order by created_at,id rows unbounded preceding) esperado
+        from kardex_movimientos m) k where k.saldo is distinct from k.esperado) then
         raise exception 'La copia contiene saldos de Kardex inconsistentes';
     end if;
     for v_trigger in select * from jsonb_to_recordset(v_triggers) as x(tabla text,nombre text,estado text) loop

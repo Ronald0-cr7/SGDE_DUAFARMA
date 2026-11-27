@@ -88,9 +88,8 @@
     <div class="card-header py-3"><h6 class="m-0 font-weight-bold text-primary">Crear usuario</h6></div>
     <div class="card-body">
         <form id="form-usuario" class="row">
-            <div class="col-md-3 mb-3"><label for="us-username">Usuario interno</label><input type="text" class="form-control" id="us-username" maxlength="200" required></div>
             <div class="col-md-3 mb-3"><label for="us-email">Correo de inicio de sesión</label><input type="email" class="form-control" id="us-email" maxlength="254" required></div>
-            <div class="col-md-3 mb-3"><label for="us-password">Contraseña (mínimo 12 caracteres)</label><input type="password" class="form-control" id="us-password" autocomplete="new-password" minlength="12" required></div>
+            <div class="col-md-3 mb-3"><label for="us-password">Contraseña (mínimo 6 caracteres)</label><input type="password" class="form-control" id="us-password" autocomplete="new-password" minlength="6" required></div>
             <div class="col-md-3 mb-3"><label for="us-nombre">Nombre completo</label><input type="text" class="form-control" id="us-nombre" maxlength="200" required></div>
             <div class="col-md-3 mb-3">
                 <label for="us-rol">Rol</label>
@@ -109,8 +108,9 @@
 <div class="card shadow mb-4">
     <div class="card-header py-3"><h6 class="m-0 font-weight-bold text-primary">Usuarios del sistema</h6></div>
     <div class="card-body table-responsive">
+        <p id="estado-usuarios" role="status" class="mb-2">Cargando cuentas de Authentication…</p>
         <table class="table table-bordered" id="tabla-usuarios">
-            <thead><tr><th>Usuario</th><th>Nombre</th><th>Rol</th><th>Activo</th><th>Acciones</th></tr></thead>
+            <thead><tr><th>Correo de inicio de sesión</th><th>Nombre</th><th>Rol</th><th>Activo</th><th>Acciones</th></tr></thead>
             <tbody></tbody>
         </table>
     </div>
@@ -129,9 +129,13 @@
                 </div>
                 <div class="modal-body">
                     <input type="hidden" id="edit-us-id">
+                    <div class="form-check mb-3" id="edit-us-vincular-grupo" hidden>
+                        <input class="form-check-input" type="checkbox" id="edit-us-vincular">
+                        <label class="form-check-label" for="edit-us-vincular">Dar acceso al SGDE y asignar un rol</label>
+                    </div>
                     <div class="form-group">
-                        <label for="edit-us-username">Usuario</label>
-                        <input type="text" class="form-control" id="edit-us-username" required>
+                        <label for="edit-us-email">Correo de inicio de sesión</label>
+                        <input type="email" class="form-control" id="edit-us-email" maxlength="254" autocomplete="off">
                     </div>
                     <div class="form-group">
                         <label for="edit-us-nombre">Nombre completo</label>
@@ -140,6 +144,7 @@
                     <div class="form-group">
                         <label for="edit-us-rol">Rol</label>
                         <select class="form-control" id="edit-us-rol" required>
+                            <option value="">Selecciona un rol</option>
                             <option value="admin">Director Técnico (admin)</option>
                             <option value="asistente">Asistente</option>
                             <option value="auxiliar">Auxiliar</option>
@@ -147,7 +152,7 @@
                     </div>
                     <div class="form-group mb-0">
                         <label for="edit-us-password">Nueva contraseña</label>
-                        <input type="password" class="form-control" id="edit-us-password" autocomplete="new-password" minlength="12">
+                        <input type="password" class="form-control" id="edit-us-password" autocomplete="new-password" minlength="6">
                         <small class="form-text text-muted">Déjala vacía para conservar la contraseña actual.</small>
                     </div>
                 </div>
@@ -176,6 +181,6 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="../js/supabaseClient.js"></script>
 <script src="../js/rol_guard.js"></script>
-<script src="../js/usuarios.js"></script>
+<script src="../js/usuarios.js?v=auth-correo"></script>
 </body>
 </html>

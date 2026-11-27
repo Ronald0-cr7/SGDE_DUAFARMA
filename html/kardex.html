@@ -86,14 +86,15 @@
 <div class="card shadow mb-4">
     <div class="card-body">
         <form id="kx-filtro-fechas" class="form-row align-items-end mb-3">
-            <div class="col-md-3 form-group"><label for="kx-desde">Fecha del acta: desde</label><input type="date" id="kx-desde" class="form-control"></div>
-            <div class="col-md-3 form-group"><label for="kx-hasta">Hasta</label><input type="date" id="kx-hasta" class="form-control"></div>
-            <div class="col-md-6 form-group"><button type="submit" class="btn btn-info">Mostrar por fechas</button> <button type="button" id="kx-limpiar-fechas" class="btn btn-outline-secondary">Mostrar todos</button></div>
+            <div class="col-md-2 form-group"><label for="kx-desde">Fecha de inicio</label><input type="date" id="kx-desde" class="form-control"></div>
+            <div class="col-md-2 form-group"><label for="kx-hasta">Fecha final</label><input type="date" id="kx-hasta" class="form-control"></div>
+            <div class="col-md-5 form-group"><label for="kx-buscar">Producto o acta de origen</label><input type="search" id="kx-buscar" class="form-control"></div>
+            <div class="col-md-3 form-group"><button type="submit" class="btn btn-info">Filtrar</button> <button type="button" id="kx-limpiar-fechas" class="btn btn-outline-secondary">Mostrar todos</button></div>
         </form>
         <p id="kx-filtro-estado" role="status" class="text-muted"></p>
         <div class="d-flex justify-content-between align-items-end flex-wrap">
             <div>
-                <label>Selecciona el Kardex del acta y producto</label>
+                <label for="kx-producto">Selecciona el Kardex del producto y lote</label>
                 <select class="form-control mb-3" id="kx-producto" style="min-width:340px;"></select>
             </div>
             <button type="button" class="btn btn-primary mb-3 solo-escritura" id="kx-registrar-salida"><i class="fas fa-truck"></i> Registrar Salida</button>
@@ -132,7 +133,7 @@
         <div class="modal-body">
             <div id="ks-error" class="alert alert-danger d-none" role="alert"></div>
             <fieldset id="ks-campos">
-                <div class="form-group"><label for="ks-producto">Kardex del acta seleccionada</label><select id="ks-producto" class="form-control" required disabled></select></div>
+                <div class="form-group"><label for="ks-producto">Kardex del lote seleccionado</label><select id="ks-producto" class="form-control" required disabled></select></div>
                 <div class="form-row">
                     <div class="form-group col-md-6"><label for="ks-fecha">Fecha de salida *</label><input id="ks-fecha" type="date" class="form-control" required></div>
                     <div class="form-group col-md-6"><label for="ks-cliente">Cliente destino *</label><input id="ks-cliente" class="form-control" required maxlength="250"></div>
@@ -149,8 +150,8 @@
                 <p id="ks-disponible" class="text-primary" role="status"></p>
                 <div class="form-group"><label for="ks-cantidad">Cantidad retirada *</label><input id="ks-cantidad" type="number" min="1" step="1" class="form-control" required></div>
                 <div class="form-row">
-                    <div class="form-group col-md-6"><label for="ks-realizado">Realizado por</label><input id="ks-realizado" class="form-control" value="Sameer Hasnain" readonly></div>
-                    <div class="form-group col-md-6"><label for="ks-verificado">Verificado por</label><input id="ks-verificado" class="form-control" value="Taylor Lujan" readonly></div>
+                    <div class="form-group col-md-6"><label for="ks-realizado">Realizado por *</label><input id="ks-realizado" class="form-control" required></div>
+                    <div class="form-group col-md-6"><label for="ks-verificado">Verificado por *</label><input id="ks-verificado" class="form-control" required></div>
                 </div>
                 <div class="form-group"><label for="ks-observacion-opcion">Observaciones</label><select id="ks-observacion-opcion" class="form-control"><option value="CONFORME">Conforme</option><option value="texto">Escribir observación</option></select></div>
                 <div id="ks-observacion-texto" class="form-group d-none"><label for="ks-observaciones">Escribe la observación</label><textarea id="ks-observaciones" class="form-control" maxlength="2000" disabled></textarea></div>
@@ -168,7 +169,7 @@
             <div class="form-group"><label for="km-fecha">Fecha *</label><input type="date" class="form-control" id="km-fecha" required></div>
             <div class="form-group"><label for="km-guia">Guía</label><input class="form-control" id="km-guia"></div>
             <div class="form-group"><label for="km-proveedor">Proveedor / cliente</label><input class="form-control" id="km-proveedor"></div>
-            <div class="form-row"><div class="form-group col-6"><label for="km-lote">Lote</label><input class="form-control" id="km-lote"></div><div class="form-group col-6"><label for="km-vencimiento">Vencimiento</label><input type="date" class="form-control" id="km-vencimiento"></div></div>
+            <div class="form-row"><div class="form-group col-6"><label for="km-lote">Lote</label><input class="form-control" id="km-lote" readonly></div><div class="form-group col-6"><label for="km-vencimiento">Vencimiento</label><input type="date" class="form-control" id="km-vencimiento" readonly></div></div>
             <div class="form-row"><div class="form-group col-6"><label for="km-ingreso">Ingreso</label><input type="number" class="form-control" id="km-ingreso" readonly></div><div class="form-group col-6"><label for="km-salida">Salida *</label><input type="number" min="1" step="1" class="form-control" id="km-salida" required></div></div>
             <div class="form-group"><label for="km-observaciones">Observaciones</label><textarea class="form-control" id="km-observaciones"></textarea></div>
         </div>
@@ -177,10 +178,10 @@
 </div>
 
 <div class="card shadow mb-4">
-    <div class="card-header py-3"><h6 class="m-0 font-weight-bold text-primary">Kardex independientes por acta y producto</h6></div>
+    <div class="card-header py-3"><h6 class="m-0 font-weight-bold text-primary">Kardex por producto y lote</h6></div>
     <div class="card-body table-responsive">
         <table class="table table-bordered table-hover" id="tabla-lista-kardex">
-            <thead><tr><th>Código</th><th>Producto</th><th>Acta de origen</th><th>Saldo del Kardex</th><th>Descargar</th></tr></thead>
+            <thead><tr><th>Código</th><th>Producto</th><th>Lote y vencimiento</th><th>Actas de origen</th><th>Saldo del Kardex</th><th>Descargar</th></tr></thead>
             <tbody></tbody>
         </table>
     </div>
@@ -205,7 +206,7 @@
 <script src="../js/supabaseClient.js"></script>
 <script src="../js/rol_guard.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
-<script src="../js/exportacionExcel.js"></script>
-<script src="../js/kardex.js"></script>
+<script src="../js/exportacionExcel.js?v=responsables"></script>
+<script src="../js/kardex.js?v=responsables"></script>
 </body>
 </html>

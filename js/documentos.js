@@ -2,21 +2,45 @@
 // documentos.js — Repositorio MOF/POE con archivos reales
 // (PDF, Word, Excel) guardados en Supabase Storage.
 //
-// Requiere que exista un bucket llamado "documentos" en tu
-// proyecto de Supabase (Storage -> New bucket -> nombre: documentos,
-// marcarlo como "Public bucket" para que la descarga funcione con
-// una URL directa). Ver LEEME.md para el paso a paso.
+// Las descargas del bucket documentos usan la sesión de Supabase.
 // ============================================================
 
 const BUCKET = 'documentos';
-const hoyLocal = () => {
-    const hoy = new Date();
-    return `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`;
-};
+const fechaLima = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Lima', year: 'numeric', month: '2-digit', day: '2-digit'
+});
+let documentosCargados = [];
+
+function fechaDocumento(valor) {
+    const fecha = valor instanceof Date ? valor : new Date(valor);
+    if (!valor || !Number.isFinite(fecha.getTime())) return '';
+    const partes = Object.fromEntries(fechaLima.formatToParts(fecha).map(({type, value}) => [type, value]));
+    return `${partes.year}-${partes.month}-${partes.day}`;
+}
+
+const hoyLocal = () => fechaDocumento(new Date());
 
 document.addEventListener('DOMContentLoaded', async () => {
     if (!await window.perfilSGDEListo) return;
     const sesion = JSON.parse(localStorage.getItem('sesion_usuario') || 'null');
+    const filtros = document.getElementById('form-filtrar-documentos');
+    filtros.addEventListener('submit', e => {
+        e.preventDefault();
+        renderizarDocumentos();
+    });
+    filtros.addEventListener('reset', () => queueMicrotask(renderizarDocumentos));
+    document.getElementById('dc-buscar').addEventListener('input', renderizarDocumentos);
+    document.querySelector('#tabla-documentos tbody').addEventListener('click', e => {
+        const boton = e.target.closest('[data-documento]');
+        if (!boton) return;
+        e.preventDefault();
+        const doc = documentosCargados.find(d => d.id === boton.dataset.documento);
+        if (!doc) return;
+        if (boton.classList.contains('descargar-documento')) return descargarDocumento(doc);
+        if (sesion?.rol === 'auxiliar') return;
+        if (boton.classList.contains('editar-documento')) return abrirEdicionDocumento(doc);
+        eliminarDocumento(doc.id, doc.archivo_path, doc.nombre);
+    });
     await cargarDocumentos();
 
     const formEditar = document.getElementById('form-editar-documento');
@@ -40,6 +64,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             alert('Selecciona un archivo (PDF, Word o Excel).');
             return;
         }
+        const codigo = document.getElementById('dc-codigo').value.trim();
+        if (!codigo) return alert('Ingresa el código del documento.');
 
         btn.disabled = true;
         btn.textContent = 'Subiendo...';
@@ -63,7 +89,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             // 2) Guardar la referencia del archivo en la tabla documentos
             const registro = {
-                categoria, nombre, version,
+                codigo, categoria, nombre, version,
                 fecha_vigencia: vigencia,
                 estado: vigencia && vigencia < hoyLocal() ? 'obsoleto' : 'vigente',
                 archivo_path: rutaSegura,
@@ -81,7 +107,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             form.reset();
             await cargarDocumentos();
         } catch (err) {
-            manejarErrorSupabase(err, 'No se pudo subir el archivo. Revisa que el bucket "documentos" exista en Supabase Storage.');
+            manejarErrorSupabase(err, `No se pudo registrar el documento. ${err.message || ''}`);
         } finally {
             btn.disabled = false;
             btn.innerHTML = '<i class="fas fa-upload"></i> Subir versión';
@@ -94,45 +120,75 @@ async function cargarDocumentos() {
     const { error: errorVigencia } = await supabaseClient.from('documentos')
         .update({ estado: 'obsoleto' }).eq('estado', 'vigente').lt('fecha_vigencia', hoy);
     if (errorVigencia) console.error('No se pudo actualizar la vigencia de los documentos:', errorVigencia);
-    const { data, error } = await supabaseClient
-        .from('documentos')
-        .select('*')
-        .order('categoria')
-        .order('created_at', { ascending: false });
-    if (error) return manejarErrorSupabase(error);
+    const documentos = [];
+    const limite = 500;
+    for (let inicio = 0; ; inicio += limite) {
+        const { data, error } = await supabaseClient.from('documentos').select('*')
+            .order('categoria').order('created_at', { ascending: false }).order('id')
+            .range(inicio, inicio + limite - 1);
+        if (error) return manejarErrorSupabase(error);
+        documentos.push(...data);
+        if (data.length < limite) break;
+    }
+    documentosCargados = documentos;
+    renderizarDocumentos();
+}
 
+function escaparDocumento(valor) {
+    return String(valor ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
+}
+
+function filtrarDocumentos(documentos, texto, desde, hasta) {
+    const normalizar = valor => String(valor ?? '').normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().trim();
+    const busqueda = normalizar(texto);
+    return documentos.filter(d => {
+        const fecha = fechaDocumento(d.created_at);
+        return (!desde || fecha >= desde) && (!hasta || (fecha && fecha <= hasta))
+            && (!busqueda || [d.codigo, d.nombre, d.categoria].some(valor => normalizar(valor).includes(busqueda)));
+    });
+}
+
+function renderizarDocumentos() {
+    const hoy = hoyLocal();
+    const desde = document.getElementById('dc-desde').value;
+    const hasta = document.getElementById('dc-hasta').value;
+    const estadoFiltro = document.getElementById('dc-filtro-estado');
+    if (desde && hasta && desde > hasta) {
+        estadoFiltro.textContent = 'La fecha de inicio no puede ser posterior a la fecha final.';
+        return;
+    }
+    const data = filtrarDocumentos(documentosCargados, document.getElementById('dc-buscar').value, desde, hasta);
+    estadoFiltro.textContent = `${data.length} documento(s). El rango se aplica a la fecha de registro.`;
     const tbody = document.querySelector('#tabla-documentos tbody');
+    const soloLectura = JSON.parse(localStorage.getItem('sesion_usuario') || 'null')?.rol === 'auxiliar';
     tbody.innerHTML = data.map(d => {
         const estado = d.estado === 'obsoleto' || (d.fecha_vigencia && d.fecha_vigencia < hoy) ? 'obsoleto' : 'vigente';
+        const id = escaparDocumento(d.id);
+        const externo = /^https?:\/\//i.test(d.url_archivo || '') ? escaparDocumento(d.url_archivo) : '';
         const enlace = d.archivo_path
-            ? `<a href="#" onclick="descargarDocumento('${d.archivo_path}','${(d.archivo_nombre || 'documento').replace(/'/g, "")}'); return false;">
-                 <i class="fas fa-download"></i> ${d.archivo_nombre || 'Descargar'}
+            ? `<a href="#" class="descargar-documento" data-documento="${id}">
+                 <i class="fas fa-download"></i> ${escaparDocumento(d.archivo_nombre || 'Descargar')}
                </a>`
-            : (d.url_archivo ? `<a href="${d.url_archivo}" target="_blank">Ver enlace</a>` : '-');
+            : (externo ? `<a href="${externo}" target="_blank" rel="noopener noreferrer">Ver enlace</a>` : '—');
 
         return `
         <tr class="${estado === 'obsoleto' ? 'text-muted' : ''}">
-            <td>${d.categoria}</td><td>${d.nombre}</td><td>${d.version}</td>
-            <td>${d.fecha_vigencia || ''}</td>
+            <td>${escaparDocumento(d.codigo || '—')}</td><td>${escaparDocumento(d.categoria)}</td>
+            <td>${escaparDocumento(d.nombre)}</td><td>${escaparDocumento(d.version)}</td>
+            <td>${fechaDocumento(d.created_at)}</td><td>${escaparDocumento(d.fecha_vigencia)}</td>
             <td><span class="badge badge-${estado === 'vigente' ? 'success' : 'secondary'}">${estado}</span></td>
             <td>${enlace}</td>
-            <td class="solo-escritura text-nowrap">
-                <button class="btn btn-sm btn-outline-primary" title="Editar" onclick='abrirEdicionDocumento(${JSON.stringify(d)})'>
+            ${soloLectura ? '' : `<td class="solo-escritura text-nowrap">
+                <button type="button" class="btn btn-sm btn-outline-primary editar-documento" title="Editar" data-documento="${id}">
                     <i class="fas fa-edit"></i>
                 </button>
-                <button class="btn btn-sm btn-outline-danger" title="Eliminar" onclick="eliminarDocumento('${d.id}','${d.archivo_path || ''}','${(d.nombre || '').replace(/'/g, "")}')">
+                <button type="button" class="btn btn-sm btn-outline-danger" title="Eliminar" data-documento="${id}">
                     <i class="fas fa-trash-alt"></i>
                 </button>
-            </td>
+            </td>`}
         </tr>`;
     }).join('');
 
-    if (window.jQuery) {
-        document.querySelectorAll('.solo-escritura').forEach(el => {
-            const sesion = JSON.parse(localStorage.getItem('sesion_usuario') || 'null');
-            if (sesion && sesion.rol === 'auxiliar') el.style.display = 'none';
-        });
-    }
 }
 
 // ------------------------------------------------------------
@@ -142,6 +198,8 @@ function abrirEdicionDocumento(doc) {
     document.getElementById('ed-id').value = doc.id;
     document.getElementById('ed-archivo-path-actual').value = doc.archivo_path || '';
     document.getElementById('ed-categoria').value = doc.categoria;
+    document.getElementById('ed-codigo').value = doc.codigo || '';
+    document.getElementById('ed-codigo').required = Boolean(doc.codigo);
     document.getElementById('ed-nombre').value = doc.nombre;
     document.getElementById('ed-version').value = doc.version;
     document.getElementById('ed-vigencia').value = doc.fecha_vigencia || '';
@@ -163,7 +221,9 @@ async function guardarEdicionDocumento(sesion) {
         const vigencia = document.getElementById('ed-vigencia').value || null;
         const nuevoArchivo = document.getElementById('ed-archivo').files[0];
 
-        const cambios = { categoria, nombre, version, fecha_vigencia: vigencia };
+        const codigo = document.getElementById('ed-codigo').value.trim();
+        if (document.getElementById('ed-codigo').required && !codigo) return alert('Ingresa el código del documento.');
+        const cambios = { codigo: codigo || null, categoria, nombre, version, fecha_vigencia: vigencia };
         if (vigencia && vigencia < hoyLocal()) cambios.estado = 'obsoleto';
 
         // Si el usuario seleccionó un archivo nuevo, lo sube y reemplaza el anterior
@@ -179,15 +239,14 @@ async function guardarEdicionDocumento(sesion) {
             cambios.archivo_path = rutaSegura;
             cambios.archivo_nombre = nuevoArchivo.name;
 
-            // Borra el archivo anterior del bucket, si existía
-            if (archivoPathActual) {
-                await supabaseClient.storage.from(BUCKET).remove([archivoPathActual]);
-            }
         }
 
         const { error: errUpdate } = await supabaseClient
-            .from('documentos').update(cambios).eq('id', id);
+            .from('documentos').update(cambios).eq('id', id).select('id').single();
         if (errUpdate) throw errUpdate;
+        if (cambios.archivo_path && archivoPathActual) {
+            await supabaseClient.storage.from(BUCKET).remove([archivoPathActual]);
+        }
 
         await registrarAuditoria('UPDATE', 'documentos', id, `Documento "${nombre}" editado (v${version})`);
 
@@ -224,20 +283,22 @@ async function eliminarDocumento(id, archivoPath, nombre) {
 }
 
 // Descarga el archivo desde Storage y fuerza el guardado con su nombre original
-async function descargarDocumento(path, nombreOriginal) {
+async function descargarDocumento(doc) {
     try {
-        const { data, error } = await supabaseClient.storage.from(BUCKET).download(path);
+        const { data, error } = await supabaseClient.storage.from(BUCKET).download(doc.archivo_path);
         if (error) throw error;
 
-        const url = URL.createObjectURL(data);
+        const esWord = /\.docx$/i.test(doc.archivo_nombre || doc.archivo_path);
+        const contenido = esWord && doc.codigo ? await agregarCodigoWord(data, doc.codigo) : data;
+        const url = URL.createObjectURL(contenido);
         const a = document.createElement('a');
         a.href = url;
-        a.download = nombreOriginal || 'documento';
+        a.download = doc.archivo_nombre || 'documento';
         document.body.appendChild(a);
         a.click();
         a.remove();
-        URL.revokeObjectURL(url);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch (err) {
-        manejarErrorSupabase(err, 'No se pudo descargar el archivo.');
+        manejarErrorSupabase(err, `No se pudo descargar el archivo. ${err.message || ''}`);
     }
 }

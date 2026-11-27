@@ -85,6 +85,7 @@ create table kardex_movimientos (
 -- ---------- REPOSITORIO DOCUMENTAL: MOF / POEs (6.2.5.18) ----------
 create table documentos (
     id uuid primary key default gen_random_uuid(),
+    codigo text,
     categoria text not null,          -- MOF, POE, Formato, Proveedor, etc.
     nombre text not null,
     version text not null,

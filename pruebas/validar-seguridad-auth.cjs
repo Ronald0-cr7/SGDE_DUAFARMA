@@ -78,7 +78,8 @@ const { PGlite } = require('../.test-tools/node_modules/@electric-sql/pglite');
     ])).rows[0].id;
     const salida = {
         recepcion_id: recepcion, producto_id: producto, fecha: '2026-11-17', salida: 2,
-        lote: 'P1', tipo_doc: 'Factura', num_doc: 'P1', guia_numero: 'P1', proveedor_cliente: 'Prueba'
+        lote: 'P1', tipo_doc: 'Factura', num_doc: 'P1', guia_numero: 'P1', proveedor_cliente: 'Prueba',
+        realizado_por: 'Operador', verificado_por: 'Supervisor'
     };
     const args = ['00000000-0000-0000-0000-000000000005', 'asistente', JSON.stringify(salida)];
     await db.query('select registrar_salida_kardex($1,$2,$3)', args);

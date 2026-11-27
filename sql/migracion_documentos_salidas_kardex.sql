@@ -24,6 +24,10 @@ begin
     if v_cantidad is null or v_cantidad <= 0 or v_cantidad::text in ('NaN','Infinity','-Infinity') then
         raise exception 'La cantidad retirada debe ser mayor que cero y finita';
     end if;
+    if nullif(btrim(p_registro->>'realizado_por'),'') is null or
+       nullif(btrim(p_registro->>'verificado_por'),'') is null then
+        raise exception 'Completa Realizado por y Verificado por';
+    end if;
     -- Serializa reintentos, incluso si se cambia accidentalmente el producto.
     perform pg_advisory_xact_lock(hashtextextended(p_id::text, 0));
     select * into v_mov from kardex_movimientos where id = p_id;
@@ -44,7 +48,8 @@ begin
         case when p_registro->>'tipo_doc' = 'Guía de remisión' then null else btrim(p_registro->>'num_doc') end,
         case when p_registro->>'tipo_doc' = 'Guía de remisión' then null else (p_registro->>'fecha')::date end,
         btrim(p_registro->>'proveedor_cliente'), p_registro->>'lote',
-        nullif(p_registro->>'fecha_venc','')::date, 0, v_cantidad, 'Sameer Hasnain', 'Taylor Lujan',
+        nullif(p_registro->>'fecha_venc','')::date, 0, v_cantidad,
+        btrim(p_registro->>'realizado_por'), btrim(p_registro->>'verificado_por'),
         nullif(btrim(p_registro->>'observaciones'),'')
     ) returning * into v_mov;
     insert into log_auditoria(usuario, accion, tabla, registro_id, detalle)

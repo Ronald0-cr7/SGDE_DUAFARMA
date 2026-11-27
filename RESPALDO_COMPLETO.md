@@ -49,7 +49,7 @@ Si cambió la base durante la preparación, el servidor rechaza la restauración
 ## Alcance y precauciones
 
 - Los antiguos ZIP `backup_biblioteca_*.zip` son parciales y el nuevo flujo los rechaza para evitar interpretarlos como copias completas. Conservarlos; para migrarlos se necesita un procedimiento separado.
-- Se requiere la misma estructura de columnas y las migraciones de Kardex por acta. La función rechaza un esquema diferente o saldos inconsistentes; no repara automáticamente diferencias del respaldo.
+- Se requiere la misma estructura de columnas. Después de aplicar la migración de Kardex por lote, ejecuta la versión actual de `sql/respaldo_completo.sql` para validar los saldos acumulados por lote y genera un respaldo nuevo. La función rechaza esquemas diferentes y saldos inconsistentes.
 - Límite de 50 MB por archivo y ZIP estándar menor que 4 GB, con un máximo de 65534 entradas. La creación escribe un archivo a la vez directamente en disco mediante Chrome o Edge y requiere HTTPS o localhost. Si falla, se aborta la escritura. La restauración todavía lee el ZIP completo en memoria; necesita memoria suficiente para el tamaño de la copia.
 - Las sesiones de restauración vencen a las cuatro horas. Si una operación falla, pueden quedar archivos nuevos sin referencia en `sgde-restauraciones/<job-id>/`. No afectan los registros previos, pero ocupan espacio. Revisar y retirar solo objetos que no estén referenciados y pertenezcan a trabajos vencidos; nunca borrar una carpeta completa de restauración sin comprobar referencias.
 - Se conservan también los archivos físicos anteriores a una restauración exitosa para evitar pérdidas. No se eliminan automáticamente. Su retención y eventual limpieza deben administrarse de forma explícita.
