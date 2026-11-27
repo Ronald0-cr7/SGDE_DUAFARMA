@@ -36,15 +36,16 @@ SGDE_DUAFARMA/
 2. En tu proyecto: **SQL Editor** → pega todo el contenido de `sql/schema.sql` → Ejecutar.
    Esto crea las tablas (`usuarios`, `productos`, `recepciones`, `recepcion_detalle`,
    `kardex_movimientos`, `documentos`, `log_auditoria`), los triggers automáticos
-   y usuarios/productos de prueba.
+   y datos de prueba de productos y documentos.
 3. Ve a **Project Settings → API** y copia la `Project URL` y la `anon public key`.
 4. Abre `js/supabaseClient.js` y reemplaza:
    ```js
    const SUPABASE_URL = "https://TU-PROYECTO.supabase.co";
    const SUPABASE_ANON_KEY = "TU-ANON-KEY-PUBLICA";
    ```
-5. Abre `index.html` directamente en el navegador (o súbelo a cualquier hosting
-   estático) e inicia sesión con `admin / admin123`.
+5. Crea los buckets de Documentos y Repositorios y sigue [la guía de seguridad](SEGURIDAD_SUPABASE.md)
+   para configurar Supabase Auth, las políticas por rol y el primer administrador.
+6. Publica el sitio estático e inicia sesión con el correo de ese administrador.
 
 ## Subir y descargar archivos (PDF, Word, Excel) — Supabase Storage
 
@@ -53,9 +54,8 @@ subir tus archivos reales desde tu PC y descargarlos de nuevo. Falta un
 paso único de configuración en tu proyecto Supabase:
 
 1. Ve a tu proyecto en supabase.com → menú lateral **Storage**.
-2. Clic en **New bucket** → nombre exacto: `documentos` → marca
-   **Public bucket** (para esta demo académica; en producción real se
-   usarían URLs firmadas en vez de bucket público) → **Create bucket**.
+2. Crea un bucket privado llamado `documentos` o ejecuta `sql/storage_documentos.sql`.
+   El acceso se activa al instalar `sql/migracion_seguridad_auth.sql`.
 3. Si ya habías ejecutado `sql/schema.sql` antes de esta actualización,
    corre además `sql/migracion_archivos.sql` en el SQL Editor (agrega las
    columnas necesarias para guardar la ruta del archivo).
@@ -136,9 +136,7 @@ sin recargar. Un reintento desde el formulario conserva el identificador para
 evitar duplicados si se perdió la respuesta del servidor. Admin y asistente
 pueden registrar; auxiliar conserva la consulta y exportación.
 
-La nueva función sigue la autenticación propia existente del prototipo. El
-nombre de usuario lo proporciona el navegador; esto no sustituye Supabase Auth
-ni políticas RLS para un despliegue productivo.
+La función usa las políticas RLS del usuario autenticado en Supabase.
 
 **Excel:** usa **Exportar a Excel** o **Descargar Kardex**. Abre el `.xlsx` en
 Excel y selecciona **Archivo → Imprimir**; el archivo incluye área de impresión
@@ -204,15 +202,10 @@ eliminarlos y buscarlos por nombre.
 6. Cierra sesión, entra como `auxiliar` → muestra que no puede ver Auditoría
    ni Usuarios, y que los formularios de creación están ocultos (solo lectura).
 
-## Nota de seguridad (para la sección de limitaciones de tu tesis)
+## Seguridad
 
-- Las contraseñas se guardan en texto plano en la tabla `usuarios`, igual que en
-  el proyecto de referencia. Para un entorno de producción real, lo correcto
-  sería usar **Supabase Auth** (con hash bcrypt) en vez de una tabla propia.
-- La bitácora de auditoría se registra desde el frontend (JavaScript) después
-  de cada operación. Es válido para este prototipo académico, pero un sistema
-  productivo debería moverla a triggers de base de datos o a una Edge Function,
-  para que no pueda omitirse aunque el usuario manipule el navegador.
-- Actualmente las tablas no tienen Row Level Security (RLS) activado, para
-  simplificar las pruebas con la `anon key`. En producción se deben crear
-  policies que exijan autenticación real (Supabase Auth) antes de leer/escribir.
+Supabase Auth gestiona las contraseñas. PostgreSQL aplica los permisos por rol
+mediante RLS. Consulta [la guía de seguridad](SEGURIDAD_SUPABASE.md) para
+instalar y verificar la migración. Algunas entradas de auditoría se solicitan
+desde el navegador. Las funciones de Kardex registran sus entradas en la
+misma transacción que el movimiento.

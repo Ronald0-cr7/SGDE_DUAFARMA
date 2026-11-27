@@ -7,7 +7,9 @@ const ExcelJS=require('../.test-tools/node_modules/exceljs');
 (async()=>{
     const db=new PGlite();
     const sql=f=>fs.readFileSync(`sql/${f}`,'utf8');
+    await db.exec('create schema auth; create table auth.users(id uuid primary key);');
     await db.exec(sql('schema.sql').replace('create extension if not exists "pgcrypto";',''));
+    await db.exec("insert into usuarios(username,nombre,rol) values ('admin','Administrador','admin')");
     for(const f of ['migracion_actas_kardex_excel.sql','migracion_edicion_kardex.sql','migracion_edicion_actas.sql','migracion_salidas_kardex.sql'])await db.exec(sql(f));
     const p=(await db.query("select * from productos where codigo='D00031'")).rows[0];
     const cabecera=guia=>({fecha:'2026-09-26',guia_numero:guia,proveedor:'Proveedor',usuario_registro:'admin'});
@@ -89,6 +91,7 @@ const ExcelJS=require('../.test-tools/node_modules/exceljs');
             throw new Error('RPC inesperada');
         }catch(e){return {error:{code:e.code,message:e.message}};}}
     };
+    w.perfilSGDEListo = Promise.resolve({ rol: 'admin' });
     w.eval(fs.readFileSync('js/kardex.js','utf8'));w.document.dispatchEvent(new w.Event('DOMContentLoaded'));
     for(let i=0;i<100&&!w.document.querySelector('#tabla-lista-kardex tbody tr');i++)await new Promise(r=>setTimeout(r,10));
     assert.equal(w.document.querySelectorAll('#kx-producto option').length,2);

@@ -25,6 +25,7 @@ function exigirAdminRepositorio() {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
+    if (!await window.perfilSGDEListo) return;
     SESION = JSON.parse(localStorage.getItem('sesion_usuario') || 'null');
     await cargarRepositorios();
     enlazarEventos();

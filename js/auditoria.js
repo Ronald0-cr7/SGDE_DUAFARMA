@@ -1,4 +1,5 @@
 document.addEventListener('DOMContentLoaded', async () => {
+    if (!await window.perfilSGDEListo) return;
     const { data, error } = await supabaseClient
         .from('log_auditoria')
         .select('*')

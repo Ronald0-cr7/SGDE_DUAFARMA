@@ -30,7 +30,7 @@ const digest=async b=>Buffer.from(await webcrypto.subtle.digest('SHA-256',b)).to
     w.exigirAdminRepositorio=()=>true;w.registrarAuditoria=async()=>{};
     w.SESION={usuario:'admin',rol:'admin'};
     const data=Object.fromEntries(tables.map(t=>[t,[]]));
-    data.usuarios=[{username:'admin',password:'clave-actual',rol:'admin',activo:true}];
+    data.usuarios=[{username:'admin',auth_user_id:'680be295-b4e6-4a63-a5c1-4cb561dbf326',rol:'admin',activo:true}];
     data.log_auditoria=Array.from({length:1100},(_,i)=>({id:`log-${i}`}));
     data.documentos=[{id:'doc',archivo_path:'poe.pdf',estado:'obsoleto',categoria:'POE',archivo_nombre:'poe.pdf'}];
     data.repositorios=[{id:'repo',nombre:'Procedimientos'}];
@@ -41,7 +41,9 @@ const digest=async b=>Buffer.from(await webcrypto.subtle.digest('SHA-256',b)).to
             {bucket:'repositorios',path:'manual.pdf',metadata:{mimetype:'application/pdf'}}]};
     const content=new TextEncoder().encode('documento de prueba');
     let snapshots=0;
-    w.supabaseClient={supabaseUrl:'https://proyecto.supabase.co',supabaseKey:'anon-test',storage:{from:()=>({download:async()=>({data:new Blob([content])})})}};
+    w.supabaseClient={supabaseUrl:'https://proyecto.supabase.co',supabaseKey:'anon-test',
+        auth:{getSession:async()=>({data:{session:{access_token:'token-admin'}}}),signOut:async()=>({error:null})},
+        storage:{from:()=>({download:async()=>({data:new Blob([content])})})}};
     w.fetch=async(url,opts)=>{
         const action=new URL(url).searchParams.get('action');calls.push(action);
         let response;

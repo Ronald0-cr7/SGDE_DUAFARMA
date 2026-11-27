@@ -44,22 +44,16 @@
             <p>Sistema de Gestión Documental Electrónica · BPA</p>
         </div>
 
-        <div class="rol-info">
-            <span class="rol-badge rol-admin">👑 Director Técnico</span>
-            <span class="rol-badge rol-asistente">🧑‍💼 Jefe de almacén</span>
-            <span class="rol-badge rol-auxiliar">🧑‍🔧 Gerente general</span>
-        </div>
-
         <form id="login-form">
             <div class="form-group">
-                <label>Usuario</label>
-                <input type="text" id="login-usuario" placeholder="Ingresa tu usuario" required>
+                <label for="login-usuario">Correo</label>
+                <input type="email" id="login-usuario" placeholder="Ingresa tu correo" autocomplete="username" required>
             </div>
             <div class="form-group">
-                <label>Contraseña</label>
-                <input type="password" id="login-password" placeholder="Ingresa tu contraseña" required>
+                <label for="login-password">Contraseña</label>
+                <input type="password" id="login-password" placeholder="Ingresa tu contraseña" autocomplete="current-password" required>
             </div>
-            <div id="error-msg">Usuario o contraseña incorrectos</div>
+            <div id="error-msg" role="alert"></div>
             <button type="submit" class="btn-login">Ingresar al sistema</button>
         </form>
 
@@ -69,6 +63,6 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="./js/supabaseClient.js"></script>
-<script src="./js/login.js"></script>
+<script src="./js/login.js?v=auth"></script>
 </body>
 </html>

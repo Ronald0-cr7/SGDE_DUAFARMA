@@ -2,6 +2,7 @@ let PRODUCTOS_RECEPCION = [];
 let ACTAS_CACHE = [];
 
 document.addEventListener('DOMContentLoaded', async () => {
+    if (!await window.perfilSGDEListo) return;
     const sesion = JSON.parse(localStorage.getItem('sesion_usuario') || 'null');
     document.getElementById('rc-fecha').value = new Date().toISOString().slice(0, 10);
     document.getElementById('rc-recibido-por').value = sesion?.nombre || '';

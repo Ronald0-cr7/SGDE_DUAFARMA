@@ -1,4 +1,6 @@
 document.addEventListener('DOMContentLoaded', async () => {
+    const perfil = await window.perfilSGDEListo;
+    if (!perfil) return;
     try {
         const { count: cProd } = await supabaseClient.from('productos').select('*', { count: 'exact', head: true });
         document.getElementById('kpi-productos').textContent = cProd ?? 0;
@@ -9,9 +11,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         const { count: cDoc } = await supabaseClient.from('documentos').select('*', { count: 'exact', head: true }).eq('estado', 'vigente');
         document.getElementById('kpi-documentos').textContent = cDoc ?? 0;
 
-        const hoy = new Date().toISOString().slice(0, 10);
-        const { count: cAud } = await supabaseClient.from('log_auditoria').select('*', { count: 'exact', head: true }).gte('fecha', hoy);
-        document.getElementById('kpi-auditoria').textContent = cAud ?? 0;
+        if (perfil.rol === 'admin') {
+            const hoy = new Date().toISOString().slice(0, 10);
+            const { count: cAud } = await supabaseClient.from('log_auditoria').select('*', { count: 'exact', head: true }).gte('fecha', hoy);
+            document.getElementById('kpi-auditoria').textContent = cAud ?? 0;
+        }
     } catch (e) {
         console.error(e);
     }

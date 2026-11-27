@@ -43,44 +43,16 @@ create index idx_archivos_carpeta on archivos_repositorio(carpeta_id);
 create index idx_archivos_repo on archivos_repositorio(repositorio_id);
 create index idx_archivos_nombre on archivos_repositorio using gin (to_tsvector('spanish', nombre));
 
--- Sin RLS, para consistencia con el resto del prototipo (ver notas de
--- seguridad en LEEME.md: el sistema usa login propio, no Supabase Auth)
-alter table repositorios disable row level security;
-alter table carpetas disable row level security;
-alter table archivos_repositorio disable row level security;
+alter table repositorios enable row level security;
+alter table carpetas enable row level security;
+alter table archivos_repositorio enable row level security;
 
 -- ============================================================
--- STORAGE: bucket "repositorios" + políticas (igual patrón que
--- storage_documentos.sql, ver esos comentarios para el detalle)
+-- Las políticas de acceso se aplican en migracion_seguridad_auth.sql.
 -- ============================================================
 insert into storage.buckets (id, name, public)
-values ('repositorios', 'repositorios', true)
-on conflict (id) do update set public = true;
-
-drop policy if exists "repositorios_select_publico" on storage.objects;
-create policy "repositorios_select_publico"
-on storage.objects for select
-to anon, authenticated
-using ( bucket_id = 'repositorios' );
-
-drop policy if exists "repositorios_insert_publico" on storage.objects;
-create policy "repositorios_insert_publico"
-on storage.objects for insert
-to anon, authenticated
-with check ( bucket_id = 'repositorios' );
-
-drop policy if exists "repositorios_update_publico" on storage.objects;
-create policy "repositorios_update_publico"
-on storage.objects for update
-to anon, authenticated
-using ( bucket_id = 'repositorios' )
-with check ( bucket_id = 'repositorios' );
-
-drop policy if exists "repositorios_delete_publico" on storage.objects;
-create policy "repositorios_delete_publico"
-on storage.objects for delete
-to anon, authenticated
-using ( bucket_id = 'repositorios' );
+values ('repositorios', 'repositorios', false)
+on conflict (id) do update set public = false;
 
 -- ============================================================
 -- Datos de ejemplo (opcional, puedes borrarlos luego)

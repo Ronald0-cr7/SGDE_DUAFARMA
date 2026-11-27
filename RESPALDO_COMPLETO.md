@@ -8,9 +8,9 @@ Los dos botones de Repositorios ahora utilizan un respaldo completo **de los dat
 - Todos los archivos referenciados por `documentos.archivo_path` y `archivos_repositorio.storage_path`, incluidas versiones documentales anteriores que sigan registradas.
 - Fechas, identificadores, estados y relaciones originales. Las vistas y actas/Excel generados se reconstruyen a partir de esos datos; no necesitan una copia adicional.
 - Las columnas numéricas se transportan como texto dentro del manifiesto para conservar su precisión; PostgreSQL recupera los tipos numéricos al restaurar.
-- Los enlaces externos se conservan como enlaces: no se descarga contenido de terceros. No se incluyen objetos huérfanos de Storage, archivos del código fuente, configuración del proyecto, SQL de tablas/funciones, secretos de Supabase, ni usuarios de Supabase Auth. El SGDE actual usa su propia tabla `usuarios`.
+- Los enlaces externos se conservan como enlaces. El respaldo de perfiles incluye sus UUID de Auth. Los archivos huérfanos, el código, la configuración, los secretos y las cuentas de Supabase Auth quedan fuera de la copia.
 
-La copia es un ZIP estándar sin contraseña: `repositorios/` conserva la jerarquía de repositorios y carpetas, `documentos/` agrupa por categoría, `datos/` contiene un JSON por tabla y `sgde.json` permite restaurar desde el sistema. Cada archivo tiene una huella SHA-256. El ZIP contiene también las credenciales actuales de los usuarios; debe guardarse en un lugar privado. Crear la copia no cambia ninguna contraseña. Las copias antiguas `.sgde` siguen admitiéndose para restauración con su contraseña original.
+La copia es un ZIP estándar sin contraseña. `repositorios/` conserva la jerarquía de repositorios y carpetas, `documentos/` agrupa por categoría, `datos/` contiene un JSON por tabla y `sgde.json` permite restaurar desde el sistema. Cada archivo tiene una huella SHA-256. Guarda el ZIP en un lugar privado. Los respaldos anteriores a Supabase Auth pueden contener contraseñas antiguas y requieren una migración separada.
 
 ## Instalación en Supabase
 
@@ -23,7 +23,7 @@ La copia es un ZIP estándar sin contraseña: `repositorios/` conserva la jerarq
    supabase functions deploy sgde-backup
    ```
 
-3. La función utiliza `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY`, disponibles en el entorno de las Edge Functions. **Nunca copiar la clave service_role al JavaScript del sitio.** `supabase/config.toml` desactiva la comprobación JWT de plataforma exclusivamente para esta función: el prototipo no usa Supabase Auth. La función exige contraseña actual de un administrador activo y, para subir/restaurar, un token aleatorio temporal que solo conserva su hash en la base de datos.
+3. La Edge Function utiliza `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` y `SUPABASE_ANON_KEY` de su entorno. Valida el token de Supabase Auth y el rol de administrador activo en cada solicitud. Verifica la contraseña actual al iniciar un respaldo o restauración y exige un token temporal adicional para las etapas de restauración.
 4. Publicar también `html/repositorios.html`, `js/repositorios.js`, `js/backupZip.js` y `js/respaldoCompleto.js` en el alojamiento habitual. Usar HTTPS o localhost para Web Crypto. Los navegadores actuales deben soportar `<dialog>`.
 5. Ensayar primero con un proyecto de pruebas y datos ficticios. La autorización para editar los archivos locales no equivale a haber instalado la función en el proyecto remoto.
 
@@ -38,11 +38,11 @@ La copia es un ZIP estándar sin contraseña: `repositorios/` conserva la jerarq
 ## Restaurar una copia
 
 1. Generar primero una copia del estado actual y cerrar las sesiones de los demás trabajadores.
-2. Seleccionar el `.zip` completo. Solo las copias antiguas `.sgde` piden su contraseña de cifrado. Antes de subir nada se comprueban el manifiesto, las referencias y todos los SHA-256.
+2. Seleccionar el `.zip` completo, generado con el esquema actual. Antes de subir los archivos se comprueban el manifiesto, las referencias y todos los SHA-256.
 3. Revisar el aviso e ingresar la contraseña del administrador actual.
 4. Los archivos se cargan a rutas nuevas y se vuelven a descargar para verificar sus huellas en el servidor. Los anteriores no se sobrescriben ni eliminan. Se necesita espacio libre adicional equivalente al tamaño de los archivos recuperados.
 5. El servidor comprueba las revisiones de los objetos verificados y reemplaza las diez tablas en una transacción. Conserva las claves foráneas activas; suspende temporalmente los triggers de negocio para no alterar saldos ni versiones al importar. Si falla una relación, un saldo, la auditoría u otra inserción, PostgreSQL revierte los registros y el estado de los triggers.
-6. Se añade un evento RESTORE a la bitácora recuperada. Al finalizar, se cierra la sesión. Las cuentas y contraseñas válidas pasan a ser las contenidas en la copia.
+6. Se añade un evento RESTORE a la bitácora recuperada. Al finalizar, se cierra la sesión. Vuelve a ingresar con tu correo y contraseña actuales de Supabase Auth.
 
 Si cambió la base durante la preparación, el servidor rechaza la restauración. Si se pierde la respuesta de confirmación, **no asumir que hubo reversión**: revisar los datos y la bitácora antes de repetir. Un token de una restauración completada no puede volver a ejecutar la operación.
 
@@ -54,8 +54,7 @@ Si cambió la base durante la preparación, el servidor rechaza la restauración
 - Las sesiones de restauración vencen a las cuatro horas. Si una operación falla, pueden quedar archivos nuevos sin referencia en `sgde-restauraciones/<job-id>/`. No afectan los registros previos, pero ocupan espacio. Revisar y retirar solo objetos que no estén referenciados y pertenezcan a trabajos vencidos; nunca borrar una carpeta completa de restauración sin comprobar referencias.
 - Se conservan también los archivos físicos anteriores a una restauración exitosa para evitar pérdidas. No se eliminan automáticamente. Su retención y eventual limpieza deben administrarse de forma explícita.
 - Las tablas técnicas `sgde_backup_jobs` y `sgde_backup_files` son privadas para el rol de servicio y no forman parte de la copia de datos operativos.
-- El SGDE aún mantiene su autenticación propia y políticas permisivas de las tablas/Storage originales. Este cambio no equivale a migrar toda la aplicación a Supabase Auth/RLS, ni certifica su seguridad productiva. Esas debilidades siguen siendo prioritarias. Los orígenes CORS son una restricción del navegador y no sustituyen la autenticación.
-- Se recomienda limitar intentos de autenticación en la pasarela, migrar la identidad a Supabase Auth/MFA y reforzar RLS antes de producción. Las credenciales y contraseñas de respaldo no se guardan en localStorage ni en logs de la nueva función.
+- La restauración requiere que los UUID de Auth del respaldo existan en el proyecto y que la copia conserve como administrador activo a quien la restaura. Consulta [la guía de seguridad](SEGURIDAD_SUPABASE.md).
 - Para un respaldo de infraestructura completo, mantener también exportaciones de PostgreSQL, código y configuración de despliegue mediante herramientas administrativas. Esta función respalda los datos de los módulos existentes, no sustituye un plan de recuperación del proyecto Supabase.
 
 ## Comprobación

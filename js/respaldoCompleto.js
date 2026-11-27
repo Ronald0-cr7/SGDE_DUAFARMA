@@ -68,10 +68,13 @@
     }
     async function api(action, body, sesion, headers = {}) {
         const client = window.supabaseClient;
+        const { data: { session }, error } = await client.auth.getSession();
+        if (error || !session) throw new Error('Vuelve a iniciar sesión para continuar.');
         const base = client.supabaseUrl;
         const response = await fetch(`${base}/functions/v1/sgde-backup?action=${action}`, {
             method: 'POST', headers: {
                 apikey: client.supabaseKey,
+                Authorization: `Bearer ${session.access_token}`,
                 ...(body instanceof Blob ? { 'Content-Type': body.type || 'application/octet-stream' } : { 'Content-Type': 'application/json' }),
                 ...(sesion ? { 'x-backup-job': sesion.id, 'x-backup-token': sesion.token } : {}), ...headers,
             }, body: body instanceof Blob ? body : JSON.stringify(body),
@@ -185,7 +188,7 @@
             });
             const password = await pedirSecreto('Autorizar descarga del respaldo', 'Ingresa tu contraseña ACTUAL de administrador para autorizar la descarga. No se cambiará tu contraseña ni se creará una nueva. El ZIP se podrá abrir sin contraseña. Evita cambios de otros usuarios durante la copia.');
             if (password === null) return;
-            credenciales = { usuario: SESION.usuario, password };
+            credenciales = { password };
             progreso('Leyendo registros de todos los módulos…');
             const snapshot = await api('snapshot', credenciales);
             const organizacion = organizar(snapshot.tablas);
@@ -212,7 +215,7 @@
                 tablas: snapshot.tablas, esquema: snapshot.esquema, archivos };
             await zip.agregar('sgde.json', JSON.stringify(manifiesto));
             for (const tabla of TABLAS) await zip.agregar(`datos/${tabla}.json`, JSON.stringify(snapshot.tablas[tabla], null, 2));
-            await zip.agregar('LEEME.txt', 'COPIA DE SEGURIDAD SGDE\r\n\r\nrepositorios/: repositorios y sus carpetas originales.\r\ndocumentos/: documentos organizados por categoría.\r\ndatos/: registros de cada módulo en JSON.\r\nsgde.json: manifiesto requerido para restaurar desde el sistema.\r\n\r\nEl ZIP no tiene contraseña. Contiene datos y credenciales del sistema; guárdalo en un lugar privado.\r\nCrear esta copia no cambia usuarios ni contraseñas. Restaurarla recupera los usuarios y contraseñas de la fecha de la copia.\r\n');
+            await zip.agregar('LEEME.txt', 'COPIA DE SEGURIDAD SGDE\r\n\r\nrepositorios/: repositorios y sus carpetas originales.\r\ndocumentos/: documentos organizados por categoría.\r\ndatos/: registros de cada módulo en JSON.\r\nsgde.json: manifiesto requerido para restaurar desde el sistema.\r\n\r\nGuarda el ZIP en un lugar privado. Incluye datos y perfiles del SGDE. Las contraseñas se administran en Supabase Auth.\r\n');
             progreso('Finalizando el ZIP…');
             await zip.cerrar(); writer = null;
             progreso(`ZIP guardado: ${TABLAS.reduce((n,t) => n + snapshot.tablas[t].length,0)} registros y ${archivos.length} archivos organizados por carpetas.`);
@@ -250,10 +253,10 @@
                 if (bytes.byteLength!==f.bytes || await hash(bytes)!==f.sha256) throw new Error(`Archivo dañado: ${f.path}. No se modificaron los registros.`);
             }
             const total=TABLAS.reduce((n,t)=>n+m.tablas[t].length,0);
-            if (!confirm(`Se reemplazarán los registros de TODOS los módulos por ${total} registros y ${m.archivos.length} archivos de la copia del ${m.creado_en}.\n\nTambién se restaurarán usuarios y contraseñas: deberás ingresar con una cuenta de esa copia. Crea primero una copia del estado actual y evita cambios de otros usuarios.\n\n¿Continuar con la restauración completa?`)) return;
+            if (!confirm(`Se reemplazarán los registros de TODOS los módulos por ${total} registros y ${m.archivos.length} archivos de la copia del ${m.creado_en}.\n\nTambién se restaurarán los perfiles y roles. Después de restaurar, vuelve a entrar con tu correo y contraseña actuales. Crea primero una copia del estado actual y evita cambios de otros usuarios.\n\n¿Continuar con la restauración completa?`)) return;
             const password = await pedirSecreto('Autorizar restauración completa','Ingresa tu contraseña actual de administrador para continuar.');
             if (password === null) return;
-            credenciales={usuario:SESION.usuario,password,esquema:m.esquema};
+            credenciales={password,esquema:m.esquema};
             const sesion=await api('start',credenciales);
             const rutas=new Map(); const archivos=[];
             for(let i=0;i<m.archivos.length;i++) {
@@ -274,6 +277,7 @@
                 // Una respuesta perdida no significa que PostgreSQL no confirmó.
                 throw new Error(`${error.message}\nSi se perdió la conexión durante la confirmación, verifica el resultado con un administrador antes de repetir la restauración. Los archivos previos se conservan.`);
             }
+            await supabaseClient.auth.signOut({ scope: 'local' });
             localStorage.removeItem('sesion_usuario'); sessionStorage.clear();
             alert('Restauración completa finalizada. Ingresa con un usuario y contraseña contenidos en la copia restaurada.');
             window.location.replace('../index.html');

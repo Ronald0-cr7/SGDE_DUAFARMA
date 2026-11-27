@@ -12,7 +12,7 @@ create extension if not exists "pgcrypto";
 create table usuarios (
     id uuid primary key default gen_random_uuid(),
     username text unique not null,
-    password text not null,          -- demo: texto plano (ver nota de seguridad en README)
+    auth_user_id uuid unique references auth.users(id) on delete set null,
     nombre text not null,
     rol text not null check (rol in ('admin','asistente','auxiliar')),
     activo boolean default true,
@@ -163,11 +163,6 @@ for each row execute function fn_obsoletar_version_anterior();
 -- ============================================================
 -- Datos de prueba
 -- ============================================================
-insert into usuarios (username, password, nombre, rol) values
-('admin', 'admin123', 'Director Técnico', 'admin'),
-('asistente', 'asist123', 'Asistente de Almacén', 'asistente'),
-('auxiliar', 'aux123', 'Auxiliar de Almacén', 'auxiliar');
-
 insert into productos (codigo, nombre, presentacion, reg_sanitario, fabricante, procedencia) values
 ('D00031', 'PARACETAMOL 500MG', 'Caja x 100 tabletas', 'RS12345', 'LABORATORIOS ABC', 'PERÚ'),
 ('D00035', 'AMOXICILINA 500MG', 'Caja x 50 cápsulas', 'RS67890', 'LABORATORIOS XYZ', 'PERÚ');
@@ -177,7 +172,11 @@ insert into documentos (categoria, nombre, version, fecha_vigencia, subido_por) 
 ('POE', 'POE Recepción de Productos', 'v2.0', current_date + interval '1 year', 'admin'),
 ('POE', 'Procedimiento ante pérdida o daño de documentación', 'v1.0', current_date + interval '1 year', 'admin');
 
--- Nota: en Supabase, activa Row Level Security (RLS) y crea policies
--- que exijan autenticación antes de permitir INSERT/UPDATE/DELETE
--- para un entorno real. Para esta demo académica se dejan las tablas
--- sin RLS (o con policies USING (true)) para simplificar las pruebas.
+-- Las políticas y la vinculación inicial se configuran según SEGURIDAD_SUPABASE.md.
+alter table usuarios enable row level security;
+alter table productos enable row level security;
+alter table recepciones enable row level security;
+alter table recepcion_detalle enable row level security;
+alter table kardex_movimientos enable row level security;
+alter table documentos enable row level security;
+alter table log_auditoria enable row level security;

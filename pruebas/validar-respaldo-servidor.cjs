@@ -8,11 +8,18 @@ const {webcrypto,randomUUID}=require('node:crypto');
     const jobs=new Map(),objects=new Map(),files=[];
     const snapshot={revision:'revision-inicial',esquema:[{tabla:'usuarios',columna:'id'}],tablas:{},archivos:[]};
     const db={
+        auth:{
+            async getUser(token){return {data:{user:token==='token-admin'?{id:'auth-admin',email:'admin@example.com'}:null}};},
+            async signInWithPassword({email,password}){
+                return {data:{user:email==='admin@example.com'&&password==='clave-admin'?{id:'auth-admin'}:null}};
+            },
+            async signOut(){return {error:null};},
+        },
         from(table){
             const filters={};
             return {select(){return this;},eq(k,v){filters[k]=v;return this;},
                 async maybeSingle(){
-                    if(table==='usuarios')return {data:filters.username==='admin'?{username:'admin',password:'clave-admin',rol:role,activo:active}:null,error:null};
+                    if(table==='usuarios')return {data:filters.auth_user_id==='auth-admin'&&role===filters.rol&&active===filters.activo?{username:'admin'}:null,error:null};
                     if(table==='sgde_backup_jobs')return {data:jobs.get(filters.id)||null,error:null};
                     throw Error(`Consulta inesperada: ${table}`);
                 },
@@ -41,7 +48,7 @@ const {webcrypto,randomUUID}=require('node:crypto');
     const request=async(action,body,session,extra={},origin='https://sgde.example')=>{
         const raw=body instanceof Blob;
         const response=await handler(new Request(`https://proyecto.supabase.co/functions/v1/sgde-backup?action=${action}`,{
-            method:'POST',headers:{Origin:origin,'Content-Type':raw?body.type:'application/json',
+            method:'POST',headers:{Origin:origin,Authorization:'Bearer token-admin','Content-Type':raw?body.type:'application/json',
                 ...(session?{'x-backup-job':session.id,'x-backup-token':session.token}:{}),...extra},
             body:raw?body:JSON.stringify(body),
         }));
@@ -50,8 +57,9 @@ const {webcrypto,randomUUID}=require('node:crypto');
     const credentials={usuario:'admin',password:'clave-admin',esquema:snapshot.esquema};
     assert.equal((await request('snapshot',credentials,null,{},'https://otro.example')).status,403);
     assert.equal((await request('snapshot',{usuario:'admin',password:'incorrecta'})).status,401);
-    role='auxiliar';assert.equal((await request('snapshot',credentials)).status,401);role='admin';
-    active=false;assert.equal((await request('start',credentials)).status,401);active=true;
+    assert.equal((await request('snapshot',credentials,null,{Authorization:'Bearer anon-test'})).status,401);
+    role='auxiliar';assert.equal((await request('snapshot',credentials)).status,403);role='admin';
+    active=false;assert.equal((await request('start',credentials)).status,403);active=true;
     assert.equal((await request('snapshot',credentials)).status,200);
     assert.equal((await request('start',{...credentials,esquema:[]})).status,400);
     const session=(await request('start',credentials)).data;

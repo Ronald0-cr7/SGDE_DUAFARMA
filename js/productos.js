@@ -1,6 +1,7 @@
 let PRODUCTOS_CRUD = [];
 
 document.addEventListener('DOMContentLoaded', async () => {
+    if (!await window.perfilSGDEListo) return;
     document.getElementById('btn-nuevo-producto').addEventListener('click', abrirNuevoProducto);
     document.getElementById('form-producto').addEventListener('submit', guardarProducto);
     document.getElementById('buscar-producto').addEventListener('input', renderProductos);

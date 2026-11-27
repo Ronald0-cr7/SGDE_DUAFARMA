@@ -1,4 +1,6 @@
 [functions.sgde-backup]
-# El SGDE aún usa su tabla usuarios. La función comprueba las credenciales
-# del administrador en el servidor y usa un token temporal para restaurar.
+# Las funciones validan el token de Supabase Auth y el rol en el servidor.
+verify_jwt = false
+
+[functions.sgde-usuarios]
 verify_jwt = false

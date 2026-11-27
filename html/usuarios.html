@@ -88,12 +88,14 @@
     <div class="card-header py-3"><h6 class="m-0 font-weight-bold text-primary">Crear usuario</h6></div>
     <div class="card-body">
         <form id="form-usuario" class="row">
-            <div class="col-md-3 mb-3"><label>Usuario</label><input type="text" class="form-control" id="us-username" required></div>
-            <div class="col-md-3 mb-3"><label>Contraseña</label><input type="text" class="form-control" id="us-password" required></div>
-            <div class="col-md-3 mb-3"><label>Nombre completo</label><input type="text" class="form-control" id="us-nombre" required></div>
+            <div class="col-md-3 mb-3"><label for="us-username">Usuario interno</label><input type="text" class="form-control" id="us-username" maxlength="200" required></div>
+            <div class="col-md-3 mb-3"><label for="us-email">Correo de inicio de sesión</label><input type="email" class="form-control" id="us-email" maxlength="254" required></div>
+            <div class="col-md-3 mb-3"><label for="us-password">Contraseña (mínimo 12 caracteres)</label><input type="password" class="form-control" id="us-password" autocomplete="new-password" minlength="12" required></div>
+            <div class="col-md-3 mb-3"><label for="us-nombre">Nombre completo</label><input type="text" class="form-control" id="us-nombre" maxlength="200" required></div>
             <div class="col-md-3 mb-3">
-                <label>Rol</label>
-                <select class="form-control" id="us-rol">
+                <label for="us-rol">Rol</label>
+                <select class="form-control" id="us-rol" required>
+                    <option value="" selected disabled>Selecciona un rol</option>
                     <option value="admin">Director Técnico (admin)</option>
                     <option value="asistente">Asistente</option>
                     <option value="auxiliar">Auxiliar</option>
@@ -145,7 +147,7 @@
                     </div>
                     <div class="form-group mb-0">
                         <label for="edit-us-password">Nueva contraseña</label>
-                        <input type="password" class="form-control" id="edit-us-password" autocomplete="new-password">
+                        <input type="password" class="form-control" id="edit-us-password" autocomplete="new-password" minlength="12">
                         <small class="form-text text-muted">Déjala vacía para conservar la contraseña actual.</small>
                     </div>
                 </div>

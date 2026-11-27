@@ -15,6 +15,7 @@ const hoyLocal = () => {
 };
 
 document.addEventListener('DOMContentLoaded', async () => {
+    if (!await window.perfilSGDEListo) return;
     const sesion = JSON.parse(localStorage.getItem('sesion_usuario') || 'null');
     await cargarDocumentos();
 

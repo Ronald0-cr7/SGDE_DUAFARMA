@@ -27,7 +27,8 @@ as $$
 $$;
 
 revoke all on function public.obtener_uso_almacenamiento() from public;
-grant execute on function public.obtener_uso_almacenamiento() to anon, authenticated;
+revoke execute on function public.obtener_uso_almacenamiento() from anon;
+grant execute on function public.obtener_uso_almacenamiento() to authenticated;
 
 comment on function public.obtener_uso_almacenamiento() is
 'Devuelve únicamente el tamaño total de PostgreSQL y Storage para el medidor del SGDE.';

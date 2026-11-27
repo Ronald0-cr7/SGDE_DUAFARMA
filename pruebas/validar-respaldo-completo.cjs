@@ -7,11 +7,15 @@ const { PGlite } = require('../.test-tools/node_modules/@electric-sql/pglite');
     const db = new PGlite();
     const sql = f => fs.readFileSync(`sql/${f}`, 'utf8');
     await db.exec(`create role anon; create role authenticated; create role service_role;
+        create schema auth;
+        create table auth.users(id uuid primary key);
         create schema storage;
         create table storage.buckets(id text primary key,name text,public boolean);
         create table storage.objects(id uuid primary key default gen_random_uuid(),bucket_id text,
             name text,metadata jsonb,updated_at timestamptz default now(),unique(bucket_id,name));`);
     await db.exec(sql('schema.sql').replace('create extension if not exists "pgcrypto";', ''));
+    await db.exec(`with cuenta as (insert into auth.users values(gen_random_uuid()) returning id)
+        insert into usuarios(username,nombre,rol,auth_user_id) select 'admin','Administrador','admin',id from cuenta`);
     for (const f of ['migracion_actas_kardex_excel.sql','migracion_edicion_kardex.sql',
         'migracion_edicion_actas.sql','migracion_salidas_kardex.sql','migracion_kardex_por_acta.sql',
         'migracion_eliminar_kardex.sql','migracion_documentos_salidas_kardex.sql','repositorios.sql',

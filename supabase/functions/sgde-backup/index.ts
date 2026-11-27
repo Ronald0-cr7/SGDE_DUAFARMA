@@ -4,7 +4,6 @@ import { createClient } from 'npm:@supabase/supabase-js@2.57.4';
 const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, {
   auth: { persistSession: false, autoRefreshToken: false },
 });
-type AdminState = { rol: string; activo: boolean };
 type BackupSnapshot = {
   revision: string;
   esquema: unknown[];
@@ -21,30 +20,35 @@ const checked = <T>(result: { data: T; error: unknown }): NonNullable<T> => {
   return result.data as NonNullable<T>;
 };
 
-async function admin(body: Record<string, unknown>) {
-  const username = typeof body.usuario === 'string' ? body.usuario : '';
-  const password = typeof body.password === 'string' ? body.password : '';
-  if (!username || !password || username.length > 200 || password.length > 1024) fail('Credenciales inválidas.', 401);
-  const { data, error } = await db.from('usuarios').select('username,password,activo,rol').eq('username', username).maybeSingle();
-  // Compatibilidad con el login actual; pendiente migrar todo el SGDE a Auth.
-  const expected = await digest(encoder.encode(data?.password || crypto.randomUUID()));
-  const actual = await digest(encoder.encode(password));
-  let difference = 0;
-  for (let i = 0; i < expected.length; i++) difference |= expected.charCodeAt(i) ^ actual.charCodeAt(i);
-  if (error || !data || !data.activo || data.rol !== 'admin' || difference) fail('Administrador o contraseña incorrectos.', 401);
-  return data.username as string;
+async function admin(req: Request) {
+  const token = req.headers.get('authorization')?.match(/^Bearer (\S+)$/i)?.[1];
+  if (!token) fail('Sesión requerida.', 401);
+  const { data: { user }, error: authError } = await db.auth.getUser(token);
+  if (authError || !user?.email) fail('Sesión inválida.', 401);
+  const { data, error } = await db.from('usuarios').select('username')
+    .eq('auth_user_id', user.id).eq('activo', true).eq('rol', 'admin').maybeSingle();
+  if (error || !data) fail('Se requiere un administrador activo.', 403);
+  return { id: user.id, email: user.email, username: data.username as string };
 }
 
-async function job(req: Request) {
+async function confirmarClave(body: Record<string, unknown>, email: string, id: string) {
+  const password = typeof body.password === 'string' ? body.password : '';
+  if (!password || password.length > 1024) fail('Credenciales inválidas.', 401);
+  const auth = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const { data, error } = await auth.auth.signInWithPassword({ email, password });
+  if (error || data.user?.id !== id) fail('Contraseña de administrador incorrecta.', 401);
+  await auth.auth.signOut({ scope: 'local' });
+}
+
+async function job(req: Request, actor: string) {
   const id = req.headers.get('x-backup-job');
   const token = req.headers.get('x-backup-token');
   if (!id || !/^[0-9a-f-]{36}$/i.test(id) || !token || token.length > 200) fail('Sesión de restauración inválida.', 401);
   const { data, error } = await db.from('sgde_backup_jobs').select('*').eq('id', id).maybeSingle();
-  if (error || !data || data.token_hash !== await digest(encoder.encode(token)) ||
+  if (error || !data || data.actor !== actor || data.token_hash !== await digest(encoder.encode(token)) ||
       data.estado !== 'preparando' || Date.parse(data.expires_at) <= Date.now()) fail('La sesión venció o no es válida.', 401);
-  // La desactivación del administrador se aplica también durante la operación.
-  const actor = checked<AdminState | null>(await db.from('usuarios').select('rol,activo').eq('username', data.actor).maybeSingle());
-  if (!actor?.activo || actor.rol !== 'admin') fail('El administrador ya no tiene acceso.', 403);
   return data;
 }
 
@@ -63,19 +67,20 @@ Deno.serve(async (req: Request) => {
   if (req.method !== 'POST') return reply({ error: 'Método no permitido.' }, 405);
   try {
     const action = new URL(req.url).searchParams.get('action');
+    const actor = await admin(req);
     if (action === 'snapshot' || action === 'start') {
       const body = await req.json();
-      const actor = await admin(body);
+      await confirmarClave(body, actor.email, actor.id);
       const snapshot = checked<BackupSnapshot>(await db.rpc('sgde_backup_snapshot'));
       if (action === 'snapshot') return reply(snapshot);
       if (JSON.stringify(body.esquema) !== JSON.stringify(snapshot.esquema)) fail('La copia pertenece a otra versión de la base de datos. No se subieron archivos.');
       const id = crypto.randomUUID();
       const token = crypto.randomUUID() + crypto.randomUUID();
-      checked(await db.from('sgde_backup_jobs').insert({ id, actor, revision: snapshot.revision,
+      checked(await db.from('sgde_backup_jobs').insert({ id, actor: actor.username, revision: snapshot.revision,
         token_hash: await digest(encoder.encode(token)) }));
       return reply({ id, token });
     }
-    const session = await job(req);
+    const session = await job(req, actor.username);
     if (action === 'upload') {
       const bucket = req.headers.get('x-file-bucket') || '';
       const expectedHash = req.headers.get('x-file-sha256') || '';

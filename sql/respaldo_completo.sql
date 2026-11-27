@@ -112,9 +112,14 @@ begin
         end if;
         v_total := v_total + jsonb_array_length(p_tablas->v_tabla);
     end loop;
-    if not exists(select 1 from jsonb_array_elements(p_tablas->'usuarios') u
-        where u->>'rol'='admin' and u->>'activo'='true') then
-        raise exception 'La copia debe conservar al menos un administrador activo';
+    if not exists(
+        select 1 from jsonb_array_elements(p_tablas->'usuarios') u
+        join public.usuarios actor on actor.username = v_job.actor
+        where u->>'rol' = 'admin' and u->>'activo' = 'true'
+          and u->>'auth_user_id' = actor.auth_user_id::text
+          and actor.activo and actor.rol = 'admin'
+    ) then
+        raise exception 'La copia debe conservar como administrador activo a la cuenta que restaura';
     end if;
     -- Cada archivo debe haber sido recibido y verificado por el servidor.
     if jsonb_typeof(p_archivos) is distinct from 'array' then raise exception 'Lista de archivos inválida'; end if;

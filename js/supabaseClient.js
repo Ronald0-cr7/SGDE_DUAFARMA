@@ -27,6 +27,25 @@ if (!window.supabaseClient) {
 }
 var supabaseClient = window.supabaseClient;
 
+async function obtenerPerfilSGDE() {
+    const { data: { session }, error } = await supabaseClient.auth.getSession();
+    if (error) throw error;
+    if (!session) return null;
+
+    const { data, error: errorPerfil } = await supabaseClient.from('usuarios')
+        .select('id, username, nombre, rol')
+        .eq('auth_user_id', session.user.id)
+        .eq('activo', true)
+        .maybeSingle();
+    if (errorPerfil) throw errorPerfil;
+    return data;
+}
+
+function guardarPerfilSGDE(perfil) {
+    const { id, username, nombre, rol } = perfil;
+    localStorage.setItem('sesion_usuario', JSON.stringify({ id, usuario: username, nombre, rol }));
+}
+
 // ------------------------------------------------------------
 // Helper genérico de errores
 // ------------------------------------------------------------

@@ -127,6 +127,7 @@ async function leerMovimientosKardex(kardexId) {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
+    if (!await window.perfilSGDEListo) return;
     const sel = document.getElementById('kx-producto');
     try { PRODUCTOS_CACHE = await leerCatalogoKardex(); }
     catch (error) { manejarErrorSupabase(error, 'No se pudieron cargar los Kardex por acta. Verifica que se haya ejecutado sql/migracion_kardex_por_acta.sql.'); return; }
