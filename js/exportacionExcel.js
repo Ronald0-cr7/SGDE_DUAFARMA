@@ -56,6 +56,13 @@
     const pagina = () => ({orientation:'landscape',paperSize:9,fitToPage:true,fitToWidth:1,fitToHeight:1,
         margins:{left:.2,right:.2,top:.3,bottom:.3,header:.1,footer:.1}});
 
+    function formatoCantidades(fila, columnas) {
+        for (const columna of columnas) {
+            const cantidad = fila.getCell(columna);
+            cantidad.numFmt = Number.isInteger(cantidad.value) ? '0' : 'General';
+        }
+    }
+
     async function exportarActaExcel(acta) {
         const wb=new ExcelJS.Workbook();wb.creator='SGDE DUA FARMA';wb.created=new Date();
         const ws=wb.addWorksheet('ACTA DE RECEPCIÓN',{pageSetup:pagina()});
@@ -76,10 +83,15 @@
         ws.getRow(8).values=['CANT.\nSOLICIT.','CANT.\nRECIB.','CÓDIGO','NOMBRE DEL PRODUCTO','PRESENTACIÓN','CONCENTRACIÓN Y FORMA\nFARMACÉUTICA','FABRICANTE','PAÍS DE\nPROCEDENCIA','LOTE / SERIE','F.VENC.','N° R.S./NSO','COND. DE ALMAC.','ESTADO DEL EMBALAJE'];
         ws.getRow(8).height=40;rango(ws,'A8:M8',{bold:true,size:7});
         const detalles=acta.recepcion_detalle||[], total=Math.max(15,detalles.length);
+        if (detalles.length > 15) {
+            ws.pageSetup.fitToHeight = 0;
+            ws.pageSetup.printTitlesRow = '2:8';
+        }
         for(let i=0;i<total;i++) {
             const f=9+i,d=detalles[i];
             if(d){const p={...(d.productos||{}),...(d.producto_snapshot||{})};ws.getRow(f).values=[Number(d.cant_solicitada||0),Number(d.cant_recibida||0),p.codigo||'',p.nombre||'',p.presentacion||'',p.concentracion_forma||'',p.fabricante||'',p.procedencia||'',d.lote||'',fecha(d.fecha_venc),p.reg_sanitario||'',p.condicion_almacen||'',d.estado_embalaje||''];}
             ws.getRow(f).height=d?47:18;rango(ws,`A${f}:M${f}`,{size:7});celda(ws.getCell(f,1),{fill:C.amarillo,size:7});celda(ws.getCell(f,2),{fill:C.amarillo,size:7});
+            if (d) formatoCantidades(ws.getRow(f), [1, 2]);
         }
         const fr=9+total;
         unir(ws,`A${fr}:E${fr}`,'Entregado por (Transportista):',{align:'left',size:7});unir(ws,`F${fr}:M${fr}`,'Recibido por (Almacén):',{align:'left',size:7});
@@ -123,6 +135,7 @@
             ws.getCell('N3').value = 'PÁGINA: ver pie';
         }
         for(let i=0;i<total;i++){const f=11+i,m=movimientos[i];if(m)ws.getRow(f).values=[Number(m.salida)>0 && m.tipo_doc && m.tipo_doc!=='Guía de remisión'?'':fecha(m.fecha),Number(m.salida)>0 && m.tipo_doc && m.tipo_doc!=='Guía de remisión'?'':m.guia_numero||m.num_doc||'',m.tipo_doc==='Guía de remisión'?'':m.tipo_doc||'',m.tipo_doc==='Guía de remisión'?'':m.num_doc||'',m.tipo_doc==='Guía de remisión'?'':fecha(m.fecha_doc),m.proveedor_cliente||'',m.lote||'',fecha(m.fecha_venc),Number(m.ingreso||0),Number(m.salida||0),Number(m.saldo||0),Number(m.salida)>0?'Sameer Hasnain':m.realizado_por||'',Number(m.salida)>0?'Taylor Lujan':m.verificado_por||'',m.observaciones||''];ws.getRow(f).height=m?34:18;rango(ws,`A${f}:N${f}`,{size:7,fill:m && Number(m.ingreso)>0?C.verde:C.blanco});}
+        for (let i = 0; i < movimientos.length; i++) formatoCantidades(ws.getRow(11 + i), [9, 10, 11]);
         const fs=11+movimientos.length;unir(ws,`F${fs}:F${fs}`,`STOCK: ${movimientos.length?movimientos[movimientos.length-1].saldo:(producto.stock||0)}`,{bold:true,size:10});
         const fp=11+total+2;unir(ws,`A${fp}:N${fp}`,'FOR-ALM-011 / VERSIÓN 001',{bold:true,align:'left',border:false});ws.pageSetup.printArea=`A1:N${fp}`;ws.headerFooter.oddFooter='&LDUA FARMA S.A.C.&CKardex de producto&R&P de &N';
         await descargar(wb,`Kardex_${seguro(producto.codigo)}_${producto.recepcion_id ? seguro(producto.acta_guia || 'Acta')+'_'+producto.recepcion_id+'_' : ''}${hoyPeru()}.xlsx`);

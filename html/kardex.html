@@ -147,7 +147,7 @@
                     <div class="form-group col-md-4"><label for="ks-vencimiento">Fecha de vencimiento</label><input id="ks-vencimiento" type="date" class="form-control" readonly></div>
                 </div>
                 <p id="ks-disponible" class="text-primary" role="status"></p>
-                <div class="form-group"><label for="ks-cantidad">Cantidad retirada *</label><input id="ks-cantidad" type="number" min="0.000001" step="any" class="form-control" required></div>
+                <div class="form-group"><label for="ks-cantidad">Cantidad retirada *</label><input id="ks-cantidad" type="number" min="1" step="1" class="form-control" required></div>
                 <div class="form-row">
                     <div class="form-group col-md-6"><label for="ks-realizado">Realizado por</label><input id="ks-realizado" class="form-control" value="Sameer Hasnain" readonly></div>
                     <div class="form-group col-md-6"><label for="ks-verificado">Verificado por</label><input id="ks-verificado" class="form-control" value="Taylor Lujan" readonly></div>
@@ -169,7 +169,7 @@
             <div class="form-group"><label for="km-guia">Guía</label><input class="form-control" id="km-guia"></div>
             <div class="form-group"><label for="km-proveedor">Proveedor / cliente</label><input class="form-control" id="km-proveedor"></div>
             <div class="form-row"><div class="form-group col-6"><label for="km-lote">Lote</label><input class="form-control" id="km-lote"></div><div class="form-group col-6"><label for="km-vencimiento">Vencimiento</label><input type="date" class="form-control" id="km-vencimiento"></div></div>
-            <div class="form-row"><div class="form-group col-6"><label for="km-ingreso">Ingreso *</label><input type="number" min="0" step="any" class="form-control" id="km-ingreso" required></div><div class="form-group col-6"><label for="km-salida">Salida *</label><input type="number" min="0" step="any" class="form-control" id="km-salida" required></div></div>
+            <div class="form-row"><div class="form-group col-6"><label for="km-ingreso">Ingreso</label><input type="number" class="form-control" id="km-ingreso" readonly></div><div class="form-group col-6"><label for="km-salida">Salida *</label><input type="number" min="1" step="1" class="form-control" id="km-salida" required></div></div>
             <div class="form-group"><label for="km-observaciones">Observaciones</label><textarea class="form-control" id="km-observaciones"></textarea></div>
         </div>
         <div class="modal-footer"><button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button><button type="submit" class="btn btn-primary">Guardar cambios</button></div>

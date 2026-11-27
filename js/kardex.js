@@ -257,8 +257,8 @@ async function guardarMovimientoKardex(e) {
     if (!anterior || Number(anterior.ingreso)>0) return;
     const ingreso = Number(document.getElementById('km-ingreso').value);
     const salida = Number(document.getElementById('km-salida').value);
-    if (!Number.isFinite(ingreso) || !Number.isFinite(salida) || ingreso < 0 || salida < 0) {
-        alert('Ingreso y salida deben ser números no negativos.'); return;
+    if (ingreso !== 0 || !Number.isSafeInteger(salida) || salida < 1) {
+        alert('La cantidad retirada debe ser un número entero mayor que cero.'); return;
     }
     const registro = {
         fecha: document.getElementById('km-fecha').value,
@@ -390,7 +390,7 @@ async function guardarSalidaKardex(e) {
     const texto = id => document.getElementById(id).value.trim();
     if (!SOLICITUD_SALIDA) {
         if (!lote) return errorSalida('Selecciona un lote disponible.');
-        if (!Number.isFinite(cantidad) || cantidad <= 0) return errorSalida('La cantidad retirada debe ser mayor que cero.');
+        if (!Number.isSafeInteger(cantidad) || cantidad < 1) return errorSalida('La cantidad retirada debe ser un número entero mayor que cero.');
         if (cantidad > Number(lote.disponible)) return errorSalida(`Stock insuficiente. Disponible: ${Number(lote.disponible)} unidades.`);
         if (!texto('ks-cliente') || !texto('ks-tipo-doc') || !texto('ks-num-doc') || !texto('ks-fecha')) return errorSalida('Completa fecha, cliente y documento.');
         const kardex = PRODUCTOS_CACHE.find(k=>k.id===texto('ks-producto'));

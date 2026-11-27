@@ -39,8 +39,8 @@ function opcionesProductos() {
 function agregarFilaProducto() {
     const tr = document.createElement('tr');
     tr.innerHTML = `
-        <td><input type="number" min="0" step="any" class="form-control form-control-sm campo-manual cant-solicitada" value="0"></td>
-        <td><input type="number" min="0.01" step="any" class="form-control form-control-sm campo-manual cant-recibida" required></td>
+        <td><input type="number" min="1" step="1" class="form-control form-control-sm campo-manual cant-solicitada" required></td>
+        <td><input type="number" min="1" step="1" class="form-control form-control-sm campo-manual cant-recibida" required></td>
         <td><select class="form-control form-control-sm campo-manual producto-select" required>${opcionesProductos()}</select></td>
         <td><span class="dato-producto dato-nombre"></span></td><td><span class="dato-producto dato-presentacion"></span></td>
         <td><span class="dato-producto dato-concentracion"></span></td><td><span class="dato-producto dato-fabricante"></span></td>
@@ -97,8 +97,10 @@ async function guardarActa(e) {
     const btn = form.querySelector('button[type="submit"]');
     const detalles = leerDetalles();
     const actaId = document.getElementById('rc-id').value;
-    if (!detalles.length || detalles.some(d => !d.producto_id || d.cant_recibida <= 0)) {
-        alert('Selecciona cada producto e ingresa una cantidad recibida mayor que cero.'); return;
+    if (!detalles.length || detalles.some(d => !d.producto_id ||
+        !Number.isSafeInteger(d.cant_solicitada) || d.cant_solicitada < 1 ||
+        !Number.isSafeInteger(d.cant_recibida) || d.cant_recibida < 1)) {
+        alert('Selecciona cada producto e ingresa cantidades solicitadas y recibidas enteras mayores que cero.'); return;
     }
     const sesion = JSON.parse(localStorage.getItem('sesion_usuario') || 'null');
     const cabecera = {

@@ -28,6 +28,10 @@ const ExcelJS=require('../.test-tools/node_modules/exceljs');
     await db.exec(sql('migracion_eliminar_kardex.sql'));
     await db.exec(sql('migracion_documentos_salidas_kardex.sql'));
     await db.exec(sql('migracion_documentos_salidas_kardex.sql'));
+    await db.exec(sql('migracion_cantidades_enteras.sql'));
+    await db.exec(sql('migracion_cantidades_enteras.sql'));
+    await assert.rejects(acta('ACTA-DECIMAL',1.5),/cantidades solicitadas y recibidas/);
+    await assert.rejects(db.query('update recepcion_detalle set cant_solicitada=0 where recepcion_id=$1',[a]),/cantidades solicitadas y recibidas/);
     assert.equal(await total(),450);
     assert.equal(await saldo(a),200);assert.equal(await saldo(b),300);
     await assert.rejects(salida(registro(a,10)),/Asigna primero/);
@@ -36,6 +40,7 @@ const ExcelJS=require('../.test-tools/node_modules/exceljs');
     await assert.rejects(salida(registro(null,10)),/Completa/);
     await assert.rejects(salida(registro(a,0)),/mayor que cero/);
     await assert.rejects(salida(registro(a,-1)),/mayor que cero/);
+    await assert.rejects(salida(registro(a,1.5)),/unidades enteras/);
     await assert.rejects(db.query('select registrar_salida_kardex($1,$2,$3)',[randomUUID(),'auxiliar',JSON.stringify(registro(a,1))]),/permiso/);
     await assert.rejects(salida(registro(a,151)),/Stock insuficiente.*150/);
     const id=randomUUID();
@@ -51,6 +56,7 @@ const ExcelJS=require('../.test-tools/node_modules/exceljs');
     await assert.rejects(db.query('select eliminar_acta_completa($1)',[a]),/salidas registradas/);
     await assert.rejects(db.query('select actualizar_acta_completa($1,$2,$3)',[a,JSON.stringify(cabecera('ACTA-A')),JSON.stringify(detalle(1000))]),/salidas registradas/);
     await db.query('update kardex_movimientos set salida=40 where id=$1',[id]);
+    await assert.rejects(db.query('update kardex_movimientos set salida=1.5 where id=$1',[id]),/unidades enteras/);
     assert.equal(await saldo(a),10);assert.equal(await saldo(b),300);
     await assert.rejects(db.query('update kardex_movimientos set salida=1000 where id=$1',[id]),/stock negativo/);
     await db.query('delete from kardex_movimientos where id=$1',[id]);
@@ -152,6 +158,8 @@ const ExcelJS=require('../.test-tools/node_modules/exceljs');
     assert.equal(hoja.getCell(`A${filaFactura}`).value,'');
     assert.equal(hoja.getCell(`B${filaFactura}`).value,'');
     assert.equal(hoja.getCell(`C${filaFactura}`).value,'Factura');
+    assert.equal(hoja.getCell(`J${filaFactura}`).value,25);
+    for(const col of ['I','J','K'])assert.equal(hoja.getCell(`${col}${filaFactura}`).numFmt,'0');
     assert.equal(hoja.getCell(`L${filaFactura}`).value,'Sameer Hasnain');
     assert.equal(hoja.getCell(`M${filaFactura}`).value,'Taylor Lujan');
     console.log('OK Excel: acta identificada, archivo único, saldo 25 y rechazo de movimientos ajenos.');
@@ -205,5 +213,19 @@ const ExcelJS=require('../.test-tools/node_modules/exceljs');
     assert.ok(hg.getCell('A11').value);assert.equal(hg.getCell('B11').value,'GUIA-UI');
     for(const col of ['C','D','E'])assert.equal(hg.getCell(`${col}11`).value,'');
     console.log('OK documentos: factura y guia excluyentes en SQL/Excel, responsables y observaciones.');
+    await w.SGDEExcel.exportarActaExcel({
+        ...cabecera('ACTA-EXCEL'),
+        recepcion_detalle: [...Array.from({length:15},()=>detalle(25)[0]),detalle(1.5)[0]]
+    });
+    const libroActa=new ExcelJS.Workbook();await libroActa.xlsx.load(Buffer.from(await archivo.arrayBuffer()));
+    const hojaActa=libroActa.worksheets[0];
+    for(const col of ['A','B']){
+        assert.equal(hojaActa.getCell(`${col}9`).value,25);
+        assert.equal(hojaActa.getCell(`${col}9`).numFmt,'0');
+        assert.equal(hojaActa.getCell(`${col}24`).value,1.5);
+    }
+    assert.equal(hojaActa.pageSetup.fitToWidth,1);
+    assert.equal(hojaActa.pageSetup.fitToHeight,0);
+    assert.equal(hojaActa.pageSetup.printTitlesRow,'2:8');
     w.close();await db.close();
 })().catch(e=>{console.error(e);process.exit(1);});
